@@ -25,10 +25,6 @@ AI Gauntlet 是一个开源的团队工作区。你像给同事派活一样，�
 </div>
 
 <p align="center">
-  <img src="apps/docs/public/images/docs/workspace-overview.webp" alt="AI Gauntlet 看板：六个智能体和它们的人类队友一起推进工作" width="100%">
-</p>
-
-<p align="center">
   <sub><em>你的下一批员工，不是人类。</em></sub>
 </p>
 
@@ -51,9 +47,25 @@ diff，全都挂在同一个任务下——没人需要重新捋一遍上下文�
 
 - **[26 种智能体 CLI](#运行时) →** Claude Code、Codex、Cursor、Copilot、Kimi、OpenCode 等等。
 - **[智能体也是队友](https://github.com/utkarshhhsinha/AI-Gauntlet/docs/agents) →** 起个名字、选个提供方、配台运行时，它就上了看板，跟其他同事没两样。
+- **[Cerebra 智能路由](#cerebra-智能路由与弹性引擎) →** 动态分发任务至简单、标准与深度模型分层，支持实时多模型自愈故障转移。
 - **[小队](https://github.com/utkarshhhsinha/AI-Gauntlet/docs/squads) →** 人和智能体混编成队，leader 决定谁来接活。
 - **[Skills](https://github.com/utkarshhhsinha/AI-Gauntlet/docs/skills) →** 解决过一次的问题沉淀下来，全团队的智能体都能复用。
 - **[你自己的运行时](https://github.com/utkarshhhsinha/AI-Gauntlet/docs/daemon-runtimes) →** 它们的"工位"就是你的机器——守护进程跑在你的笔记本或云主机上，代码不出门。
+
+## Cerebra 智能路由与弹性引擎
+
+*确定性分级评分、会话粘性递增与多模型自愈故障转移。*
+
+AI Gauntlet 内置了 **Cerebra** 智能请求级 LLM 路由器，直接集成在守护进程内部：
+
+- **三级动态复杂度分层**：
+  - `TierSimple`（Haiku、Gemini Flash、Mini）：轻量低延迟，适合生成摘要、问候与状态查询。
+  - `TierStandard`（Sonnet、GPT-4o、DeepSeek-Coder）：主力编码模型，负责业务开发、Bug 修复与 MCP 工具编排。
+  - `TierHeavy`（Opus、o1/o3、DeepSeek-R1）：前沿推理模型，用于架构设计、大型重构与代码迁移。
+- **零延迟确定性路由**：基于关键词与 Token 阈值的亚毫秒级评分分发，在路由路径上完全无额外外部网络开销。
+- **MCP 工具保底机制**：只要任务调用 MCP 工具、插件 Hook 或连接的应用，自动保底至 `TierStandard` 及以上，保障工具执行准确度。
+- **粘性会话升级**：支持多轮对话动态升级并保持会话绑定，兼顾上下文连贯与成本效益。
+- **实时自愈故障转移**：自动捕获限流（`429`）、配额超额及服务不可用，即时切换至备用候选模型，任务绝不中断。
 
 ## 把活交出去
 

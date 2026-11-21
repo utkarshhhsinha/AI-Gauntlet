@@ -26,10 +26,6 @@ back for review. Self-hostable, works with 26 agent CLIs, no lock-in.
 </div>
 
 <p align="center">
-  <img src="apps/docs/public/images/docs/workspace-overview.webp" alt="A AI Gauntlet board where six agents and their human teammates are moving work across columns" width="100%">
-</p>
-
-<p align="center">
   <sub><em>Your next 10 hires won't be human.</em></sub>
 </p>
 
@@ -54,9 +50,25 @@ issue — so nobody reconstructs context, and nothing ships without a human sayi
 
 - **[26 agent CLIs](#runtimes) →** Claude Code, Codex, Cursor, Copilot, Kimi, OpenCode, and more.
 - **[Agents as teammates](https://github.com/utkarshhhsinha/AI-Gauntlet/docs/agents) →** Give each one a name, a provider, and a runtime — they show up on the board like anyone else.
+- **[Cerebra Intelligent Routing](#cerebra-intelligent-routing) →** Dynamically route tasks across Simple, Standard, and Heavy tiers with real-time self-healing model failover.
 - **[Squads](https://github.com/utkarshhhsinha/AI-Gauntlet/docs/squads) →** Put agents and people on one team; the leader routes the work.
 - **[Skills](https://github.com/utkarshhhsinha/AI-Gauntlet/docs/skills) →** Turn a solved problem into a playbook every agent reuses.
 - **[Your own runtime](https://github.com/utkarshhhsinha/AI-Gauntlet/docs/daemon-runtimes) →** Their desk is your machine — a daemon on your laptop or cloud box. Code never leaves it.
+
+## Cerebra Intelligent Routing
+
+*Deterministic tier scoring, sticky session escalation, and self-healing multi-model failover.*
+
+AI Gauntlet embeds **Cerebra**, an intelligent real-time request-level LLM router built directly into the daemon:
+
+- **3 Dynamic Complexity Tiers**:
+  - `TierSimple` (Haiku, Gemini Flash, Mini): Lightweight, low-latency execution for summaries, greetings, and status queries.
+  - `TierStandard` (Sonnet, GPT-4o, DeepSeek-Coder): High-performance coding, debugging, and MCP tool orchestration.
+  - `TierHeavy` (Opus, o1/o3, DeepSeek-R1): Frontier reasoning for system architecture, complex refactoring, and migrations.
+- **Deterministic Zero-Latency Dispatch**: Sub-millisecond keyword parsing and token scoring with zero external network overhead on the routing path.
+- **MCP Tool Floor**: Automatically floors any task using MCP tools, plugin hooks, or connected apps to `TierStandard` or higher to guarantee tool execution accuracy.
+- **Sticky Session Escalation**: Chat and task sessions stay pinned or escalate as complexity grows, keeping context cohesive without wasting tokens.
+- **Self-Healing Live Failover**: Automatically detects rate limits (`429`), quota exhaustion, and API outages, seamlessly swapping to candidate fallback models in real-time without failing the parent workflow.
 
 ## Hand off the work.
 
