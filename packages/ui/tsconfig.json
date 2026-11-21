@@ -1,0 +1,16 @@
+{
+  "extends": "@ai-gauntlet/tsconfig/react-library.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": ".",
+    "paths": {
+      "@/lib/utils": ["./lib/utils.ts"],
+      "@/hooks/*": ["./hooks/*"],
+      "@/components/ui/*": ["./components/ui/*"],
+      "@ai-gauntlet/ui/components": ["./components"],
+      "@ai-gauntlet/ui/lib": ["./lib"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules", "dist"]
+}

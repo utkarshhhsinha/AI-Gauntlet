@@ -1,0 +1,26 @@
+{
+  "manifest_version": 1,
+  "key": "com.ai-gauntlet.cerebra",
+  "name": "Cerebra",
+  "description": "Zero-config intelligent model routing and resilience for all AI Gauntlet agents. Automatically routes each task to the optimal model tier (simple/standard/heavy) based on prompt complexity, MCP tools, and connected providers. Works with OpenCode, Claude, Codex, Kimi, Hermes, Ollama, and custom providers.",
+  "version": "1.0.1",
+  "author": {
+    "name": "AI Gauntlet Community",
+    "url": "https://github.com/utkarshhhsinha/AI-Gauntlet"
+  },
+  "scopes": [
+    "issues:read",
+    "tasks:read",
+    "storage:workspace",
+    "net:cerebra.localhost"
+  ],
+  "contributes": {
+    "resources": [
+      {
+        "type": "skill",
+        "key": "cerebra-routing",
+        "entry": "skills/cerebra-routing/SKILL.md"
+      }
+    ]
+  }
+}

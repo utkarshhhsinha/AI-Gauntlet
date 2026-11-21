@@ -1,0 +1,101 @@
+"use client";
+
+import { useMemo } from "react";
+import { CoreProvider } from "@ai-gauntlet/core/platform";
+import { createBrowserCookieLocaleAdapter } from "@ai-gauntlet/core/i18n/browser";
+import type { LocaleResources, SupportedLocale } from "@ai-gauntlet/core/i18n";
+import { useWelcomeStore } from "@ai-gauntlet/core/onboarding";
+import packageJson from "../package.json";
+import { WebNavigationProvider } from "@/platform/navigation";
+import { WebScrollRestorationProvider } from "@/platform/scroll-restoration";
+import {
+  setLoggedInCookie,
+  clearLoggedInCookie,
+} from "@/features/auth/auth-cookie";
+import { detectWebOS } from "@/platform/client-os";
+import { useUserLocaleSyncEnabled } from "@/platform/user-locale-sync";
+
+// Legacy token in localStorage → keep this session in token mode so users who
+// logged in before the cookie-auth migration stay authed. They migrate to
+// cookie mode on their next logout/login cycle (logout clears ai_gauntlet_token).
+// Sunset: once telemetry shows <1% of sessions still carry ai_gauntlet_token,
+// delete this branch and hard-code `cookieAuth` — the localStorage token is
+// XSS-exposed and is the exact thing the cookie migration exists to remove.
+function hasLegacyToken(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return Boolean(window.localStorage.getItem("ai_gauntlet_token"));
+  } catch {
+    return false;
+  }
+}
+
+// Derive WebSocket URL from the page origin so self-hosted / LAN deployments
+// work without an explicit runtime wsUrl. In local development on localhost:3000,
+// connect directly to the backend on port 18614.
+function deriveWsUrl(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
+  if (window.location.hostname === "localhost" && window.location.port === "3000") {
+    return "ws://localhost:18614/ws";
+  }
+  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${proto}//${window.location.host}/ws`;
+}
+
+// Build-time version preferred (CI sets NEXT_PUBLIC_APP_VERSION to a git tag
+// or sha so different deploys are distinguishable in server logs); fall back
+// to the package.json version so local dev still reports something useful.
+const WEB_VERSION =
+  process.env.NEXT_PUBLIC_APP_VERSION || packageJson.version || "dev";
+
+export function WebProviders({
+  children,
+  locale,
+  resources,
+  apiBaseUrl,
+  wsUrl,
+}: {
+  children: React.ReactNode;
+  locale: SupportedLocale;
+  resources: Record<string, LocaleResources>;
+  apiBaseUrl?: string;
+  wsUrl?: string;
+}) {
+  const cookieAuth = !hasLegacyToken();
+  const syncUserLocale = useUserLocaleSyncEnabled();
+  // Stable identity reference so downstream effects keyed on it don't see a
+  // new object on every parent render.
+  const identity = useMemo(
+    () => ({ platform: "web", version: WEB_VERSION, os: detectWebOS() }),
+    [],
+  );
+  const localeAdapter = useMemo(() => createBrowserCookieLocaleAdapter(), []);
+  return (
+    <CoreProvider
+      apiBaseUrl={apiBaseUrl}
+      wsUrl={wsUrl || deriveWsUrl()}
+      cookieAuth={cookieAuth}
+      onLogin={setLoggedInCookie}
+      onLogout={() => {
+        // welcome-store holds the transient post-onboarding signal. Must
+        // clear on logout so user B logging into the same browser doesn't
+        // inherit user A's signal and have <WelcomeAfterOnboarding /> fire
+        // listAgents / createIssue against a workspace user B doesn't even
+        // belong to. The store's own docstring promises this reset; this
+        // is where it gets wired.
+        useWelcomeStore.getState().reset();
+        clearLoggedInCookie();
+      }}
+      identity={identity}
+      locale={locale}
+      resources={resources}
+      localeAdapter={localeAdapter}
+      syncUserLocale={syncUserLocale}
+    >
+      <WebNavigationProvider>
+        <WebScrollRestorationProvider>{children}</WebScrollRestorationProvider>
+      </WebNavigationProvider>
+    </CoreProvider>
+  );
+}

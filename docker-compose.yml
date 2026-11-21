@@ -1,0 +1,16 @@
+name: ai-gauntlet
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: ai_gauntlet
+      POSTGRES_USER: ${POSTGRES_USER:-ai-gauntlet}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ai-gauntlet}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

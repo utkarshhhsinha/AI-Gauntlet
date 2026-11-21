@@ -1,0 +1,16 @@
+apiVersion: v2
+name: ai-gauntlet
+description: |
+  AI-native task management — like Linear, but with AI agents as first-class citizens.
+  Self-host the backend, frontend, and PostgreSQL on a Kubernetes cluster.
+type: application
+version: 0.1.0
+appVersion: "latest"
+home: https://github.com/utkarshhhsinha/AI-Gauntlet
+sources:
+  - https://github.com/utkarshhhsinha/AI-Gauntlet
+keywords:
+  - ai-gauntlet
+  - issue-tracker
+  - ai-agents
+  - self-host
