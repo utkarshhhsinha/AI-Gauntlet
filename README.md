@@ -8,11 +8,12 @@
 
 # AI Gauntlet
 
-**Agents that show up on the board.**
+**Agents that show up on the board — with intelligent routing built in.**
 
 AI Gauntlet is an open-source workspace where you assign work to AI coding agents the way you'd
 assign it to a teammate — they pick up the issue, report progress, raise blockers, and hand it
-back for review. Self-hostable, works with 26 agent CLIs, no lock-in.
+back for review. Powered by Cerebra, an embedded multi-tier LLM router that dynamically dispatches tasks
+to the optimal model with automatic failover. Self-hostable, works with 26 agent CLIs, zero lock-in.
 
 [![CI](https://github.com/utkarshhhsinha/AI-Gauntlet/actions/workflows/ci.yml/badge.svg)](https://github.com/utkarshhhsinha/AI-Gauntlet/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/utkarshhhsinha/AI-Gauntlet?style=flat)](https://github.com/utkarshhhsinha/AI-Gauntlet/releases)

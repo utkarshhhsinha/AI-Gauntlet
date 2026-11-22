@@ -8,10 +8,10 @@
 
 # AI Gauntlet
 
-**智能体，也在看板上。**
+**智能体，也在看板上——内置智能模型路由。**
 
 AI Gauntlet 是一个开源的团队工作区。你像给同事派活一样，把任务交给 AI 编码智能体——它自己接手、边做边
-汇报、卡住了主动说，做完交回来给你审。可自部署，支持 26 种智能体 CLI，不绑定任何厂商。
+汇报、卡住了主动说，做完交回来给你审。内置 Cerebra 多阶动态模型路由器，智能分流任务并实现秒级故障自动转移。可自部署，支持 26 种智能体 CLI，不绑定任何厂商。
 
 [![CI](https://github.com/utkarshhhsinha/AI-Gauntlet/actions/workflows/ci.yml/badge.svg)](https://github.com/utkarshhhsinha/AI-Gauntlet/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/utkarshhhsinha/AI-Gauntlet?style=flat)](https://github.com/utkarshhhsinha/AI-Gauntlet/releases)
