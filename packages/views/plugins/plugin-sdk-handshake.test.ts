@@ -20,8 +20,8 @@ describe("surface SDK guest port", () => {
     };
     channel.port2.start();
 
-    const { ai-gauntlet } = await loadSdk(channel.port1);
-    await ai-gauntlet.context.get(true);
+    const { aiGauntlet } = await loadSdk(channel.port1);
+    await aiGauntlet.context.get(true);
 
     expect(asked).toHaveLength(1);
     expect(asked[0]).toMatchObject({ kind: "action", method: "GET", path: "/context" });
@@ -32,10 +32,10 @@ describe("surface SDK guest port", () => {
     const style = { setProperty: vi.fn() };
     vi.stubGlobal("document", { documentElement: { style } });
     const channel = new MessageChannel();
-    const { ai-gauntlet } = await loadSdk(channel.port1);
+    const { aiGauntlet } = await loadSdk(channel.port1);
     channel.port2.postMessage({ kind: "theme", theme: { "--background": "black" } });
 
     await vi.waitFor(() => expect(style.setProperty).toHaveBeenCalledWith("--background", "black"));
-    expect(typeof ai-gauntlet.ui.onThemeChange).toBe("function");
+    expect(typeof aiGauntlet.ui.onThemeChange).toBe("function");
   });
 });

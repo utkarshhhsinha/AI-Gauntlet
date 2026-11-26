@@ -417,6 +417,17 @@ export interface AgentTask {
    * reporting was not free, we just don't know what it cost.
    */
   usage?: TaskUsage[];
+  /**
+   * Cerebra routing decision info, if the task was routed through intelligent
+   * LLM model routing.
+   */
+  routing?: TaskRoutingInfo;
+}
+
+export interface TaskRoutingInfo {
+  tier?: string;
+  chosen_model?: string;
+  matched_rule?: string;
 }
 
 /**

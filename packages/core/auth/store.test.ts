@@ -54,7 +54,7 @@ describe("authStore", () => {
     store.setState({ user: fakeUser, status: "authenticated", isLoading: false });
     store.getState().logout();
 
-    expect(storage.snapshot().ai-gauntlet_token).toBeUndefined();
+    expect(storage.snapshot().ai_gauntlet_token).toBeUndefined();
     expect(api.setToken).toHaveBeenCalledWith(null);
     expect(onLogout).toHaveBeenCalledOnce();
     expect(store.getState().user).toBeNull();
@@ -71,7 +71,7 @@ describe("authStore", () => {
     store.setState({ user: fakeUser, status: "authenticated", isLoading: false });
     store.getState().sessionExpired();
 
-    expect(storage.snapshot().ai-gauntlet_token).toBeUndefined();
+    expect(storage.snapshot().ai_gauntlet_token).toBeUndefined();
     expect(api.setToken).toHaveBeenCalledWith(null);
     expect(onLogout).toHaveBeenCalledOnce();
     expect(store.getState().user).toBeNull();
@@ -99,7 +99,7 @@ describe("authStore", () => {
     // Stands in for the api client's 401 hook, which fires inside getMe.
     store.getState().sessionExpired();
 
-    expect(storage.snapshot().ai-gauntlet_token).toBeUndefined();
+    expect(storage.snapshot().ai_gauntlet_token).toBeUndefined();
     expect(api.setToken).toHaveBeenLastCalledWith(null);
   });
 
@@ -124,7 +124,7 @@ describe("authStore", () => {
     store.getState().sessionExpired();
 
     expect(store.getState().expired).toBe(true);
-    expect(storage.snapshot().ai-gauntlet_token).toBeUndefined();
+    expect(storage.snapshot().ai_gauntlet_token).toBeUndefined();
   });
 
   it("runs the expiry handler instead of the logout one when given both", () => {

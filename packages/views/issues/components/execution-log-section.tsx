@@ -468,6 +468,7 @@ function PastRow({ task, issueId }: { task: AgentTask; issueId: string }) {
       ? formatDuration(task.started_at, new Date(task.completed_at).getTime())
       : "",
     usage?.models.join(", ") ?? "",
+    task.routing?.tier ? `Cerebra tier: ${task.routing.tier}` : "",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -512,6 +513,14 @@ function PastRow({ task, issueId }: { task: AgentTask; issueId: string }) {
         <span className="sr-only">
           {[failureLabel ?? label, time].filter(Boolean).join(" · ")}
         </span>
+        {task.routing?.tier && (
+          <span
+            className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0 capitalize border border-amber-500/20"
+            title={`Cerebra routed to ${task.routing.chosen_model ?? ""} (Tier: ${task.routing.tier}${task.routing.matched_rule ? `, Rule: ${task.routing.matched_rule}` : ""})`}
+          >
+            {task.routing.tier}
+          </span>
+        )}
         {usage ? (
           <span className="tabular-nums">{formatTokens(usage.tokens)}</span>
         ) : (

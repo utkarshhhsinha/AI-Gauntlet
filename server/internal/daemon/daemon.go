@@ -8596,9 +8596,19 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 		})
 	}
 	if len(usageEntries) == 0 && model != "" {
+		inputTokens := int64(len(prompt) / 4)
+		if inputTokens == 0 && len(prompt) > 0 {
+			inputTokens = 1
+		}
+		outputTokens := int64(len(result.Output) / 4)
+		if outputTokens == 0 && len(result.Output) > 0 {
+			outputTokens = 1
+		}
 		usageEntries = append(usageEntries, TaskUsageEntry{
-			Provider: provider,
-			Model:    model,
+			Provider:     provider,
+			Model:        model,
+			InputTokens:  inputTokens,
+			OutputTokens: outputTokens,
 		})
 	}
 

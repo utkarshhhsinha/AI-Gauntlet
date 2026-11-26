@@ -142,7 +142,16 @@ export function formatTokens(n: number): string {
 
 // Cents below $100, whole dollars above — two decimals on a four-figure spend
 // is noise, and dropping them below $100 would round most single runs to $0.
+// Sub-cent amounts (e.g. lightweight models or short runs) display with up
+// to 4 decimal places (e.g. $0.0019) so users see actual cost instead of $0.00.
 export function formatUsd(n: number): string {
+  if (n <= 0) return "$0.00";
+  if (n < 0.01) {
+    if (n < 0.0001) return "<$0.0001";
+    const fixed = n.toFixed(4);
+    const trimmed = fixed.replace(/0+$/, "");
+    return `$${trimmed}`;
+  }
   if (n >= 100) return `$${n.toFixed(0)}`;
   return `$${n.toFixed(2)}`;
 }
@@ -264,6 +273,22 @@ const MODEL_PRICING: Record<
   "deepseek-v4-pro":    { input: 1.74, output: 3.48, cacheRead: 0.0145, cacheWrite: 1.74 },
   "deepseek-chat":      { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0.14 },
   "deepseek-reasoner":  { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0.14 },
+  "deepseek-3.2":       { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0.14 },
+  "deepseek-v3.2":      { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0.14 },
+  "deepseek-3":         { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0.14 },
+  "deepseek-v3":        { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0.14 },
+
+  // -- Google Gemini (ai.google.dev/pricing) --
+  "gemini-3.1-pro-preview": { input: 1.25, output: 5.00, cacheRead: 0.3125, cacheWrite: 1.25 },
+  "gemini-3.1-pro":         { input: 1.25, output: 5.00, cacheRead: 0.3125, cacheWrite: 1.25 },
+  "gemini-3-pro":           { input: 1.25, output: 5.00, cacheRead: 0.3125, cacheWrite: 1.25 },
+  "gemini-2.5-pro":         { input: 1.25, output: 5.00, cacheRead: 0.3125, cacheWrite: 1.25 },
+  "gemini-2.5-pro-exp":     { input: 1.25, output: 5.00, cacheRead: 0.3125, cacheWrite: 1.25 },
+  "gemini-2.5-flash":       { input: 0.075, output: 0.30, cacheRead: 0.01875, cacheWrite: 0.075 },
+  "gemini-3.5-flash-lite":  { input: 0.075, output: 0.30, cacheRead: 0.01875, cacheWrite: 0.075 },
+  "gemini-3.6-flash-high":  { input: 0.075, output: 0.30, cacheRead: 0.01875, cacheWrite: 0.075 },
+  "gemini-1.5-pro":         { input: 1.25, output: 5.00, cacheRead: 0.3125, cacheWrite: 1.25 },
+  "gemini-1.5-flash":       { input: 0.075, output: 0.30, cacheRead: 0.01875, cacheWrite: 0.075 },
 
   // -- Moonshot Kimi (kimi.com/resources/kimi-k2-6-pricing).
   //    Only K2.6 is on the official price sheet today; earlier K2 variants

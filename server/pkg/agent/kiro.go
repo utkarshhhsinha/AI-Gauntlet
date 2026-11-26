@@ -137,6 +137,12 @@ func (b *kiroBackend) Execute(ctx context.Context, prompt string, opts ExecOptio
 	var finishingMu sync.Mutex
 	var lastFinishingResultStatus string // "", "completed", or "failed"
 
+	var (
+		charsMu             sync.Mutex
+		observedInputChars  int64 = int64(len(prompt))
+		observedOutputChars int64
+	)
+
 	promptDone := make(chan hermesPromptResult, 1)
 	activity := make(chan struct{}, 1)
 
@@ -187,6 +193,16 @@ func (b *kiroBackend) Execute(ctx context.Context, prompt string, opts ExecOptio
 					finishingMu.Unlock()
 				}
 			}
+			charsMu.Lock()
+			switch msg.Type {
+			case MessageText, MessageThinking:
+				observedOutputChars += int64(len(msg.Content))
+			case MessageToolUse:
+				observedOutputChars += int64(len(msg.Tool) + len(msg.Input))
+			case MessageToolResult:
+				observedInputChars += int64(len(msg.Output))
+			}
+			charsMu.Unlock()
 			deliverable.observe(msg)
 			trySend(msgCh, msg)
 		},
@@ -463,6 +479,29 @@ func (b *kiroBackend) Execute(ctx context.Context, prompt string, opts ExecOptio
 		finalStatus, finalError = promoteACPResultOnProviderError(finalStatus, finalError, providerErrorOutput, providerErr)
 
 		u := c.accumulatedUsage()
+		if !acpUsagePresent(u) {
+			charsMu.Lock()
+			inChars := observedInputChars
+			outChars := observedOutputChars
+			charsMu.Unlock()
+			if outChars == 0 && len(finalOutput) > 0 {
+				outChars = int64(len(finalOutput))
+			}
+			if inChars > 0 || outChars > 0 {
+				inTokens := inChars / 4
+				if inTokens == 0 && inChars > 0 {
+					inTokens = 1
+				}
+				outTokens := outChars / 4
+				if outTokens == 0 && outChars > 0 {
+					outTokens = 1
+				}
+				u = TokenUsage{
+					InputTokens:  inTokens,
+					OutputTokens: outTokens,
+				}
+			}
+		}
 
 		var usageMap map[string]TokenUsage
 		if acpUsagePresent(u) {

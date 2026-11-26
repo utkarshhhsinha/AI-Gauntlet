@@ -525,6 +525,9 @@ type AgentTaskResponse struct {
 	// model call, genuinely has no number, and showing 0 would assert it was
 	// free. omitempty keeps both off the wire.
 	Usage []TaskUsageData `json:"usage,omitempty"`
+	// Routing carries Cerebra routing metadata when the task was dispatched
+	// through Cerebra model routing.
+	Routing *TaskRoutingData `json:"routing,omitempty"`
 	// AuthToken is the task-scoped `mat_` token the daemon must inject as
 	// AI_GAUNTLET_TOKEN in the agent process environment. The server binds it to
 	// this (agent_id, task_id) pair at claim time and treats any request
@@ -721,6 +724,13 @@ type TaskUsageData struct {
 	CacheReadTokens  int64  `json:"cache_read_tokens"`
 	CacheWriteTokens int64  `json:"cache_write_tokens"`
 	CostUsdTicks     *int64 `json:"cost_usd_ticks,omitempty"`
+}
+
+// TaskRoutingData holds Cerebra intelligent routing evidence for display in task execution details.
+type TaskRoutingData struct {
+	Tier        string `json:"tier"`
+	ChosenModel string `json:"chosen_model"`
+	MatchedRule string `json:"matched_rule,omitempty"`
 }
 
 // TaskAgentData holds agent info included in claim responses so the daemon

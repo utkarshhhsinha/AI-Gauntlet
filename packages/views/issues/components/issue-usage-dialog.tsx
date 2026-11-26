@@ -315,7 +315,7 @@ function RunTable({ tasks, total }: { tasks: AgentTask[]; total: TaskUsageSummar
             <td>{formatTokens(total.cacheRead)}</td>
             <td>{formatTokens(total.cacheWrite)}</td>
             <td className="!pr-16">{formatTokens(total.tokens)}</td>
-            <td className="!pr-0">{formatUsd(total.cost)}</td>
+            <td className="!pr-0" title={total.cost > 0 ? `$${total.cost.toFixed(4)}` : undefined}>{formatUsd(total.cost)}</td>
           </tr>
         </tfoot>
       </table>
@@ -366,9 +366,19 @@ function RunRow({ task, maxTokens }: { task: AgentTask; maxTokens: number }) {
           cell needs its own width bound for `truncate` to have anything to
           truncate against. */}
       <td className="max-w-[11rem] text-micro text-muted-foreground">
-        <span className="block truncate" title={summary.models.join(", ")}>
-          {summary.models.join(", ") || "—"}
-        </span>
+        <div className="flex items-center gap-1.5 truncate">
+          <span className="truncate" title={summary.models.join(", ")}>
+            {summary.models.join(", ") || "—"}
+          </span>
+          {task.routing?.tier && (
+            <span
+              className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0 capitalize border border-amber-500/20"
+              title={`Cerebra routed to ${task.routing.chosen_model ?? summary.models.join(", ")} (Tier: ${task.routing.tier}${task.routing.matched_rule ? `, Rule: ${task.routing.matched_rule}` : ""})`}
+            >
+              {task.routing.tier}
+            </span>
+          )}
+        </div>
       </td>
       <td className="text-muted-foreground">{duration || "—"}</td>
       <td>{formatTokens(summary.input)}</td>
@@ -386,7 +396,7 @@ function RunRow({ task, maxTokens }: { task: AgentTask; maxTokens: number }) {
           </span>
         </div>
       </td>
-      <td className="!pr-0 font-medium">{formatUsd(summary.cost)}</td>
+      <td className="!pr-0 font-medium" title={summary.cost > 0 ? `$${summary.cost.toFixed(4)}` : undefined}>{formatUsd(summary.cost)}</td>
     </tr>
   );
 }

@@ -5133,9 +5133,41 @@ func (h *Handler) ListTasksByIssue(w http.ResponseWriter, r *http.Request) {
 	// for a column that is near-empty on runs that have not finished.
 	if !activeOnly {
 		h.hydrateTaskUsage(r.Context(), issue.ID, resp)
+		h.hydrateTaskRouting(r.Context(), issue.ID, resp)
 	}
 
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// hydrateTaskRouting attaches Cerebra routing decisions to the execution-log rows.
+func (h *Handler) hydrateTaskRouting(ctx context.Context, issueID pgtype.UUID, resp []AgentTaskResponse) {
+	if len(resp) == 0 {
+		return
+	}
+	issueIDStr := uuidToString(issueID)
+	if issueIDStr == "" {
+		return
+	}
+	logs, err := h.Queries.GetRoutingLogsByIssue(ctx, strToText(issueIDStr))
+	if err != nil || len(logs) == 0 {
+		return
+	}
+	routingByTask := make(map[string]TaskRoutingData, len(logs))
+	for _, l := range logs {
+		tID := l.TaskID.String
+		if _, ok := routingByTask[tID]; !ok {
+			routingByTask[tID] = TaskRoutingData{
+				Tier:        l.Tier,
+				ChosenModel: l.ChosenModel,
+				MatchedRule: l.MatchedRule,
+			}
+		}
+	}
+	for i := range resp {
+		if r, ok := routingByTask[resp[i].ID]; ok {
+			resp[i].Routing = &r
+		}
+	}
 }
 
 // hydrateTaskUsage attaches each run's own token usage to the execution-log

@@ -85,7 +85,7 @@ describe("useHtmlPreviewScrollRestore", () => {
       new MessageEvent("message", {
         source: iframe.contentWindow,
         data: {
-          __ai-gauntlet: "__ai-gauntlet",
+          "__ai-gauntlet": "__ai-gauntlet",
           kind: "scroll",
           y: 512,
           height: 4000,
@@ -105,7 +105,7 @@ describe("useHtmlPreviewScrollRestore", () => {
       new MessageEvent("message", {
         source: iframe.contentWindow,
         data: {
-          __ai-gauntlet: "__ai-gauntlet",
+          "__ai-gauntlet": "__ai-gauntlet",
           kind: "scroll",
           y: 9999,
           height: 1,
@@ -143,7 +143,7 @@ describe("useHtmlPreviewScrollRestore", () => {
       new MessageEvent("message", {
         source: iframe.contentWindow,
         data: {
-          __ai-gauntlet: "__ai-gauntlet",
+          "__ai-gauntlet": "__ai-gauntlet",
           kind: "scroll",
           y: 800,
           height: 5000,
@@ -279,7 +279,7 @@ describe("useHtmlPreviewScrollRestore", () => {
         new MessageEvent("message", {
           source: iframe.contentWindow,
           data: {
-            __ai-gauntlet: "__ai-gauntlet",
+            "__ai-gauntlet": "__ai-gauntlet",
             kind: "ready",
             y: 100 + i,
             height: 9000,

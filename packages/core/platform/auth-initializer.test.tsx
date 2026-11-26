@@ -133,7 +133,7 @@ describe("AuthInitializer recovery", () => {
     await waitFor(() => {
       expect(useAuthStore.getState().status).toBe("recovering");
     });
-    expect(storage.snapshot().ai-gauntlet_token).toBe("token-1");
+    expect(storage.snapshot().ai_gauntlet_token).toBe("token-1");
     expect(onLogout).not.toHaveBeenCalled();
 
     act(() => window.dispatchEvent(new Event("online")));
@@ -399,7 +399,7 @@ describe("AuthInitializer recovery", () => {
     await waitFor(() => {
       expect(useAuthStore.getState().status).toBe("unauthenticated");
     });
-    expect(storage.snapshot().ai-gauntlet_token).toBeUndefined();
+    expect(storage.snapshot().ai_gauntlet_token).toBeUndefined();
     expect(onLogout).toHaveBeenCalledOnce();
   });
 });

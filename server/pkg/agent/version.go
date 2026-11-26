@@ -88,7 +88,7 @@ func CheckMinCLIVersionFor(detected, minimum string) error {
 	if d == "" {
 		return ErrCLIVersionMissing
 	}
-	if devDescribeRe.MatchString(d) {
+	if d == "dev" || devDescribeRe.MatchString(d) {
 		return nil
 	}
 	parsed, err := parseSemver(d)

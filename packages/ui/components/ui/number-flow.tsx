@@ -42,9 +42,10 @@ function CurrencyNumberFlow({
   "aria-label": ariaLabel,
   ...props
 }: CurrencyNumberFlowProps) {
-  const fractionDigits = Math.abs(value) >= fractionThreshold ? 0 : 2
+  const isSubCent = Math.abs(value) > 0 && Math.abs(value) < 0.01
+  const fractionDigits = Math.abs(value) >= fractionThreshold ? 0 : isSubCent ? 4 : 2
   const format: NumberFlowFormat = {
-    minimumFractionDigits: fractionDigits,
+    minimumFractionDigits: Math.abs(value) >= fractionThreshold ? 0 : 2,
     maximumFractionDigits: fractionDigits,
     useGrouping: false,
   }

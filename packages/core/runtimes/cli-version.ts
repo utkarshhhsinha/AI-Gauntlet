@@ -68,7 +68,7 @@ function checkCliVersion(
   minimum: string,
 ): CliVersionCheck {
   const current = (detected ?? "").trim();
-  if (DEV_DESCRIBE_RE.test(current)) {
+  if (current === "dev" || DEV_DESCRIBE_RE.test(current)) {
     return { state: "ok", current, min: minimum };
   }
   const parsed = current ? parseSemver(current) : null;

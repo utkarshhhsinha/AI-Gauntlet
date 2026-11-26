@@ -16,7 +16,7 @@ export default function NotFound() {
         {t(($) => $.not_found.description)}
       </p>
       <Link href="/" className={buttonVariants({ className: "mt-2" })}>
-        {t(($) => $.not_found.back_to_ai-gauntlet)}
+        {t(($) => $.not_found["back_to_ai-gauntlet"])}
       </Link>
     </main>
   );

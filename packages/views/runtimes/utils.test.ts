@@ -449,6 +449,30 @@ describe("estimateCost", () => {
     expect(isModelPriced("qwen3.8-max-preview-extra")).toBe(false);
   });
 
+  it("prices deepseek-3.2 and gemini models accurately", () => {
+    expect(isModelPriced("deepseek-3.2")).toBe(true);
+    expect(isModelPriced("deepseek-3")).toBe(true);
+    expect(
+      estimateCost({
+        ...zeroUsage,
+        model: "deepseek-3.2",
+        input_tokens: 1_000_000,
+        output_tokens: 1_000_000,
+      }),
+    ).toBeCloseTo(0.42, 5);
+
+    expect(isModelPriced("google/gemini-3.1-pro-preview")).toBe(true);
+    expect(isModelPriced("gemini-2.5-flash")).toBe(true);
+    expect(
+      estimateCost({
+        ...zeroUsage,
+        model: "google/gemini-3.1-pro-preview",
+        input_tokens: 1_000_000,
+        output_tokens: 1_000_000,
+      }),
+    ).toBeCloseTo(6.25, 5);
+  });
+
   it("returns 0 for a genuinely unknown model so the UI can flag it", () => {
     expect(
       estimateCost({
