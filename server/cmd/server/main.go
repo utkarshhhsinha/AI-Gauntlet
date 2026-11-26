@@ -770,6 +770,11 @@ func main() {
 	if err := schedulerMgr.Register(scheduler.PluginHookScheduleDispatchJob(queries, h.PluginService)); err != nil {
 		slog.Warn("scheduler: failed to register plugin_hook_schedule_dispatch job", "error", err)
 	}
+	// Database Orphan GC: Periodically purges dangling/orphaned records across
+	// tables that lack database-level foreign keys and cascades.
+	if err := schedulerMgr.Register(scheduler.DatabaseOrphanGCJob(pool)); err != nil {
+		slog.Warn("scheduler: failed to register database_orphan_gc job", "error", err)
+	}
 	go func() {
 		_ = schedulerMgr.Run(sweepCtx)
 	}()
