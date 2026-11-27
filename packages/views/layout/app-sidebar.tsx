@@ -17,7 +17,8 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Layers,
+import {
+  Layers,
   ChevronDown,
   ChevronRight,
   LogOut,
@@ -196,6 +197,15 @@ const utilityNav: { key: NavKey; labelKey: NavLabelKey }[] = [
   { key: "settings", labelKey: "settings" },
 ];
 
+const navItemButtonClass = cn(
+  "group/nav-item relative flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-xs text-muted-foreground transition-all duration-150",
+  "hover:bg-sidebar-accent/60 hover:text-foreground",
+  "data-active:bg-sidebar-accent data-active:text-foreground data-active:font-medium data-active:shadow-2xs data-active:border data-active:border-sidebar-border/50",
+  "[&>svg]:size-4 [&>svg]:stroke-[1.75] [&>svg]:text-muted-foreground/80 group-hover/nav-item:[&>svg]:text-foreground [&>svg]:transition-colors",
+  "data-active:[&>svg]:text-primary",
+  "data-active:before:absolute data-active:before:left-0 data-active:before:top-1.5 data-active:before:bottom-1.5 data-active:before:w-0.5 data-active:before:rounded-r-full data-active:before:bg-primary"
+);
+
 function DraftDot() {
   const hasDraft = useIssueDraftStore((s) => s.hasDraft());
   if (!hasDraft) return null;
@@ -261,7 +271,7 @@ function SortablePinItem({
           onNavigate?.();
         }}
         className={cn(
-          "text-muted-foreground hover:not-data-active:bg-sidebar-accent/70 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground",
+          navItemButtonClass,
           isDragging && "pointer-events-none",
         )}
       >
@@ -656,170 +666,179 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
   ];
 
   return (
-      <Sidebar variant="inset">
-        {topSlot}
-        {/* Workspace Switcher */}
-        <SidebarHeader className={cn("py-3", headerClassName)} style={headerStyle}>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <SidebarMenuButton>
-                      <span className="relative">
-                        <WorkspaceAvatar name={workspace?.name ?? "M"} avatarUrl={workspace?.avatar_url} size="sm" />
-                        {/* Shared brand dot: a pending invitation OR another
+    <Sidebar variant="inset">
+      {topSlot}
+      {/* Workspace Switcher */}
+      <SidebarHeader className={cn("py-3", headerClassName)} style={headerStyle}>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <SidebarMenuButton className="h-10 rounded-xl px-2.5 transition-all duration-150 hover:bg-sidebar-accent/80 border border-transparent hover:border-sidebar-border/40 group">
+                    <span className="relative">
+                      <WorkspaceAvatar name={workspace?.name ?? "M"} avatarUrl={workspace?.avatar_url} size="sm" className="rounded-lg shadow-2xs ring-1 ring-border/40" />
+                      {/* Shared brand dot: a pending invitation OR another
                             workspace with unread inbox items. The active
                             workspace's own unread stays on the Inbox nav count
                             (below), so it is deliberately excluded here. */}
-                        {(myInvitations.length > 0 || otherWorkspaceUnread) && (
-                          <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-brand ring-1 ring-sidebar" />
-                        )}
-                      </span>
-                      <span className="flex-1 truncate font-medium">
+                      {(myInvitations.length > 0 || otherWorkspaceUnread) && (
+                        <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-brand ring-1 ring-sidebar" />
+                      )}
+                    </span>
+                    <div className="flex flex-1 min-w-0 flex-col text-left">
+                      <span className="truncate text-xs font-semibold text-foreground tracking-tight leading-tight">
                         {workspace?.name ?? "AI Gauntlet"}
                       </span>
-                      <ChevronDown className="size-3 text-muted-foreground" />
-                    </SidebarMenuButton>
-                  }
-                />
-                <DropdownMenuContent
-                  className="w-auto min-w-56"
-                  align="start"
-                  side="bottom"
-                  sideOffset={4}
-                >
-                  <div className="flex items-center gap-2.5 px-2 py-1.5">
-                    <ActorAvatar
-                      name={user?.name ?? ""}
-                      initials={(user?.name ?? "U").charAt(0).toUpperCase()}
-                      avatarUrl={resolvePublicFileUrl(user?.avatar_url)}
-                      size="lg"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-body font-medium leading-tight">
-                        {user?.name}
-                      </p>
-                      <p className="truncate text-caption text-muted-foreground leading-tight">
-                        {user?.email}
-                      </p>
+                      <span className="truncate text-[10px] text-muted-foreground/75 leading-tight">
+                        Workspace
+                      </span>
                     </div>
+                    <ChevronDown className="size-3 text-muted-foreground/60 transition-transform duration-150 group-hover:text-foreground" />
+                  </SidebarMenuButton>
+                }
+              />
+              <DropdownMenuContent
+                className="w-auto min-w-56"
+                align="start"
+                side="bottom"
+                sideOffset={4}
+              >
+                <div className="flex items-center gap-2.5 px-2 py-1.5">
+                  <ActorAvatar
+                    name={user?.name ?? ""}
+                    initials={(user?.name ?? "U").charAt(0).toUpperCase()}
+                    avatarUrl={resolvePublicFileUrl(user?.avatar_url)}
+                    size="lg"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-body font-medium leading-tight">
+                      {user?.name}
+                    </p>
+                    <p className="truncate text-caption text-muted-foreground leading-tight">
+                      {user?.email}
+                    </p>
                   </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel className="text-caption text-muted-foreground">
-                      {t(($) => $.sidebar.workspaces_label)}
-                    </DropdownMenuLabel>
-                    {workspaces.map((ws) => (
-                      <DropdownMenuItem
-                        key={ws.id}
-                        render={
-                          <AppLink href={paths.workspace(ws.slug).issues()} />
-                        }
-                      >
-                        <WorkspaceAvatar name={ws.name} avatarUrl={ws.avatar_url} size="sm" />
-                        <span className="flex-1 truncate">{ws.name}</span>
-                        {/* Points at the specific workspace holding unread
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="text-caption text-muted-foreground">
+                    {t(($) => $.sidebar.workspaces_label)}
+                  </DropdownMenuLabel>
+                  {workspaces.map((ws) => (
+                    <DropdownMenuItem
+                      key={ws.id}
+                      render={
+                        <AppLink href={paths.workspace(ws.slug).issues()} />
+                      }
+                    >
+                      <WorkspaceAvatar name={ws.name} avatarUrl={ws.avatar_url} size="sm" />
+                      <span className="flex-1 truncate">{ws.name}</span>
+                      {/* Points at the specific workspace holding unread
                             inbox items. Sits in the same right-edge slot as the
                             active-workspace check; the active workspace is
                             excluded (its unread is the Inbox nav count), so dot
                             and check never collide on one row. */}
-                        {ws.id !== workspace?.id && unreadWsIds.has(ws.id) && (
-                          <span className="size-2 rounded-full bg-brand" />
-                        )}
-                        {ws.id === workspace?.id && (
-                          <Check className="h-3.5 w-3.5 text-primary" />
-                        )}
-                      </DropdownMenuItem>
-                    ))}
-                    {!workspaceCreationDisabled && (
-                      <DropdownMenuItem
-                        onClick={() => push(paths.newWorkspace())}
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        {t(($) => $.sidebar.create_workspace)}
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuGroup>
-                  {myInvitations.length > 0 && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuGroup>
-                        <DropdownMenuLabel className="text-caption text-muted-foreground">
-                          {t(($) => $.sidebar.pending_invitations_label)}
-                        </DropdownMenuLabel>
-                        {myInvitations.map((inv) => (
-                          <div key={inv.id} className="flex items-center gap-2 px-2 py-1.5">
-                            <WorkspaceAvatar name={inv.workspace_name ?? "W"} size="sm" />
-                            <span className="flex-1 truncate text-body">{inv.workspace_name ?? t(($) => $.sidebar.invitation_workspace_fallback)}</span>
-                            <button
-                              type="button"
-                              className="text-caption px-2 py-0.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                              disabled={acceptInvitationMut.isPending}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                acceptInvitationMut.mutate(inv.id);
-                              }}
-                            >
-                              {t(($) => $.sidebar.invitation_join)}
-                            </button>
-                            <button
-                              type="button"
-                              className="text-caption px-2 py-0.5 rounded bg-muted text-muted-foreground hover:bg-muted/80 disabled:opacity-50"
-                              disabled={declineInvitationMut.isPending}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                declineInvitationMut.mutate(inv.id);
-                              }}
-                            >
-                              {t(($) => $.sidebar.invitation_decline)}
-                            </button>
-                          </div>
-                        ))}
-                      </DropdownMenuGroup>
-                    </>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem variant="destructive" onClick={logout}>
-                      <LogOut className="h-3.5 w-3.5" />
-                      {t(($) => $.sidebar.log_out)}
+                      {ws.id !== workspace?.id && unreadWsIds.has(ws.id) && (
+                        <span className="size-2 rounded-full bg-brand" />
+                      )}
+                      {ws.id === workspace?.id && (
+                        <Check className="h-3.5 w-3.5 text-primary" />
+                      )}
                     </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </SidebarMenuItem>
-          </SidebarMenu>
-          <SidebarMenu>
-            {searchSlot && (
-              <SidebarMenuItem>
-                {searchSlot}
-              </SidebarMenuItem>
-            )}
+                  ))}
+                  {!workspaceCreationDisabled && (
+                    <DropdownMenuItem
+                      onClick={() => push(paths.newWorkspace())}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      {t(($) => $.sidebar.create_workspace)}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuGroup>
+                {myInvitations.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel className="text-caption text-muted-foreground">
+                        {t(($) => $.sidebar.pending_invitations_label)}
+                      </DropdownMenuLabel>
+                      {myInvitations.map((inv) => (
+                        <div key={inv.id} className="flex items-center gap-2 px-2 py-1.5">
+                          <WorkspaceAvatar name={inv.workspace_name ?? "W"} size="sm" />
+                          <span className="flex-1 truncate text-body">{inv.workspace_name ?? t(($) => $.sidebar.invitation_workspace_fallback)}</span>
+                          <button
+                            type="button"
+                            className="text-caption px-2 py-0.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                            disabled={acceptInvitationMut.isPending}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              acceptInvitationMut.mutate(inv.id);
+                            }}
+                          >
+                            {t(($) => $.sidebar.invitation_join)}
+                          </button>
+                          <button
+                            type="button"
+                            className="text-caption px-2 py-0.5 rounded bg-muted text-muted-foreground hover:bg-muted/80 disabled:opacity-50"
+                            disabled={declineInvitationMut.isPending}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              declineInvitationMut.mutate(inv.id);
+                            }}
+                          >
+                            {t(($) => $.sidebar.invitation_decline)}
+                          </button>
+                        </div>
+                      ))}
+                    </DropdownMenuGroup>
+                  </>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuItem variant="destructive" onClick={logout}>
+                    <LogOut className="h-3.5 w-3.5" />
+                    {t(($) => $.sidebar.log_out)}
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
+        <SidebarMenu className="gap-1.5 pt-0.5">
+          {searchSlot && (
             <SidebarMenuItem>
-              <SidebarMenuButton
-                className="text-muted-foreground"
-                onClick={() => openCreateIssueWithPreference()}
-              >
-                <span className="relative">
-                  <SquarePen />
-                  <DraftDot />
-                </span>
-                <span>{t(($) => $.sidebar.new_issue)}</span>
-                {createIssueShortcut ? (
-                  <ShortcutKeycaps shortcut={createIssueShortcut} decorative className="pointer-events-none ml-auto" />
-                ) : null}
-              </SidebarMenuButton>
+              {searchSlot}
             </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarHeader>
+          )}
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              className="h-8 rounded-lg bg-primary/10 hover:bg-primary/15 text-primary border border-primary/20 hover:border-primary/30 font-medium text-xs px-2.5 transition-all duration-150 active:scale-[0.99] group shadow-2xs"
+              onClick={() => openCreateIssueWithPreference()}
+            >
+              <span className="relative flex items-center justify-center">
+                <SquarePen className="h-3.5 w-3.5 text-primary" />
+                <DraftDot />
+              </span>
+              <span className="font-medium text-primary">{t(($) => $.sidebar.new_issue)}</span>
+              {createIssueShortcut ? (
+                <ShortcutKeycaps
+                  shortcut={createIssueShortcut}
+                  decorative
+                  className="pointer-events-none ml-auto border-primary/25 bg-primary/10 text-primary opacity-80 group-hover:opacity-100"
+                />
+              ) : null}
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
 
-        {/* Navigation */}
-        <SidebarContent ref={sidebarScrollRef} style={sidebarFadeStyle}>
-          {showCurvedNav ? (
-            <CurvedNav items={curvedItems} />
-          ) : (
-            <SidebarGroup>
+      {/* Navigation */}
+      <SidebarContent ref={sidebarScrollRef} style={sidebarFadeStyle}>
+        {showCurvedNav ? (
+          <CurvedNav items={curvedItems} />
+        ) : (
+          <SidebarGroup>
             <SidebarGroupContent>
               <SidebarMenu className={BUBBLE_MENU}>
                 {personalNav.map((item) => {
@@ -834,7 +853,7 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
                         className={BUBBLE_BUTTON}
                       >
                         <Icon />
-                        <span>{t(($) => $.nav[item.labelKey])}</span>
+                        <span className="truncate">{t(($) => $.nav[item.labelKey])}</span>
                         {item.key === "inbox" && unreadCount > 0 && (
                           <CappedNumberFlow
                             value={unreadCount}
@@ -856,115 +875,117 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-          )}
+        )}
 
-          {visiblePinned.length > 0 && (
-            <Collapsible defaultOpen>
-              <SidebarGroup className="group/pinned">
-                <SidebarGroupLabel
-                  render={<CollapsibleTrigger />}
-                  className="group/trigger cursor-pointer hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground"
-                >
-                  <span>{t(($) => $.sidebar.pinned_label)}</span>
-                  <ChevronRight className="!size-3 ml-1 stroke-[2.5] transition-transform duration-200 group-data-[panel-open]/trigger:rotate-90" />
-                  <span className="ml-auto text-micro text-muted-foreground opacity-0 transition-opacity group-hover/pinned:opacity-100">{visiblePinned.length}</span>
-                </SidebarGroupLabel>
-                <CollapsibleContent>
-                  <SidebarGroupContent>
-                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                      <SortableContext items={displayedPinned.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-                        <SidebarMenu className="gap-0.5">
-                          {displayedPinned.map((pin: PinnedItem) => (
-                            <PinRow
-                              key={pin.id}
-                              pin={pin}
-                              href={getPinHref(pin)}
-                              pathname={pathname}
-                              onUnpin={() => deletePin.mutate({ itemType: pin.item_type, itemId: pin.item_id })}
-                              wsId={wsId ?? ""}
-                            />
-                          ))}
-                        </SidebarMenu>
-                      </SortableContext>
-                    </DndContext>
-                    {visiblePinned.length > PINNED_PREVIEW_LIMIT && (
-                      <SidebarMenuButton
-                        size="sm"
-                        aria-expanded={pinsExpanded}
-                        className="mt-0.5 pl-7 text-muted-foreground"
-                        onClick={() => setExpandedPinsWorkspaceId(pinsExpanded ? null : wsId ?? null)}
-                      >
-                        <span>
-                          {pinsExpanded
-                            ? t(($) => $.sidebar.show_fewer_pins)
-                            : t(($) => $.sidebar.show_more_pins, { count: visiblePinned.length - PINNED_PREVIEW_LIMIT })}
-                        </span>
-                      </SidebarMenuButton>
-                    )}
-                  </SidebarGroupContent>
-                </CollapsibleContent>
-              </SidebarGroup>
-            </Collapsible>
-          )}
+        {visiblePinned.length > 0 && (
+          <Collapsible defaultOpen>
+            <SidebarGroup className="group/pinned">
+              <SidebarGroupLabel
+                render={<CollapsibleTrigger />}
+                className="group/trigger cursor-pointer hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground"
+              >
+                <span>{t(($) => $.sidebar.pinned_label)}</span>
+                <ChevronRight className="!size-3 ml-1 stroke-[2.5] transition-transform duration-200 group-data-[panel-open]/trigger:rotate-90" />
+                <span className="ml-auto text-micro text-muted-foreground opacity-0 transition-opacity group-hover/pinned:opacity-100">{visiblePinned.length}</span>
+              </SidebarGroupLabel>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+                    <SortableContext items={displayedPinned.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                      <SidebarMenu className="gap-0.5">
+                        {displayedPinned.map((pin: PinnedItem) => (
+                          <PinRow
+                            key={pin.id}
+                            pin={pin}
+                            href={getPinHref(pin)}
+                            pathname={pathname}
+                            onUnpin={() => deletePin.mutate({ itemType: pin.item_type, itemId: pin.item_id })}
+                            wsId={wsId ?? ""}
+                          />
+                        ))}
+                      </SidebarMenu>
+                    </SortableContext>
+                  </DndContext>
+                  {visiblePinned.length > PINNED_PREVIEW_LIMIT && (
+                    <SidebarMenuButton
+                      size="sm"
+                      aria-expanded={pinsExpanded}
+                      className="mt-0.5 pl-7 text-muted-foreground"
+                      onClick={() => setExpandedPinsWorkspaceId(pinsExpanded ? null : wsId ?? null)}
+                    >
+                      <span>
+                        {pinsExpanded
+                          ? t(($) => $.sidebar.show_fewer_pins)
+                          : t(($) => $.sidebar.show_more_pins, { count: visiblePinned.length - PINNED_PREVIEW_LIMIT })}
+                      </span>
+                    </SidebarMenuButton>
+                  )}
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </SidebarGroup>
+          </Collapsible>
+        )}
 
-          {!showCurvedNav && (
-            <>
+        {!showCurvedNav && (
+          <>
             <SidebarGroup>
-            <SidebarGroupLabel>{t(($) => $.sidebar.work_group)}</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu className={BUBBLE_MENU}>
-                {workNav.map((item) => {
-                  const href = p[item.key]();
-                  const Icon = routeIconForPath(href);
-                  const isActive = !isActivePinnedRoute && isNavActive(pathname, href);
-                  return (
-                    <SidebarMenuItem key={item.key} className={BUBBLE_ITEM}>
-                      <SidebarMenuButton
-                        isActive={isActive}
-                        render={<AppLink href={href} />}
-                        className={BUBBLE_BUTTON}
-                      >
-                        <Icon />
-                        <span>{t(($) => $.nav[item.labelKey])}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+              <SidebarGroupLabel>{t(($) => $.sidebar.work_group)}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className={BUBBLE_MENU}>
+                  {workNav.map((item) => {
+                    const href = p[item.key]();
+                    const Icon = routeIconForPath(href);
+                    const isActive = !isActivePinnedRoute && isNavActive(pathname, href);
+                    return (
+                      <SidebarMenuItem key={item.key} className={BUBBLE_ITEM}>
+                        <SidebarMenuButton
+                          isActive={isActive}
+                          render={<AppLink href={href} />}
+                          className={BUBBLE_BUTTON}
+                        >
+                          <Icon />
+                          <span className="truncate">{t(($) => $.nav[item.labelKey])}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
 
-          <SidebarGroup>
-            <SidebarGroupLabel>{t(($) => $.sidebar.ai_team_group)}</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu className={BUBBLE_MENU}>
-                {aiTeamNav.map((item) => {
-                  const href = p[item.key]();
-                  const Icon = routeIconForPath(href);
-                  const isActive = isNavActive(pathname, href);
-                  return (
-                    <SidebarMenuItem key={item.key} className={BUBBLE_ITEM}>
-                      <SidebarMenuButton
-                        isActive={isActive}
-                        render={<AppLink href={href} />}
-                        className={BUBBLE_BUTTON}
-                      >
-                        <Icon />
-                        <span>{t(($) => $.nav[item.labelKey])}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-            </>
-          )}
-        </SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 px-2.5 pt-3.5 pb-1 select-none">
+                {t(($) => $.sidebar.ai_team_group)}
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className={BUBBLE_MENU}>
+                  {aiTeamNav.map((item) => {
+                    const href = p[item.key]();
+                    const Icon = routeIconForPath(href);
+                    const isActive = isNavActive(pathname, href);
+                    return (
+                      <SidebarMenuItem key={item.key} className={BUBBLE_ITEM}>
+                        <SidebarMenuButton
+                          isActive={isActive}
+                          render={<AppLink href={href} />}
+                          className={BUBBLE_BUTTON}
+                        >
+                          <Icon />
+                          <span className="truncate">{t(($) => $.nav[item.labelKey])}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
+        )}
+      </SidebarContent>
 
-        <SidebarFooter className="p-2">
-          {!showCurvedNav && (
-            <SidebarMenu className={BUBBLE_MENU}>
+      <SidebarFooter className="p-2">
+        {!showCurvedNav && (
+          <SidebarMenu className={BUBBLE_MENU}>
             {utilityNav.map((item) => {
               const href = p[item.key]();
               const Icon = routeIconForPath(href);
@@ -976,22 +997,22 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
                     className={cn(BUBBLE_BUTTON, "text-caption")}
                   >
                     <Icon />
-                    <span>{t(($) => $.nav[item.labelKey])}</span>
+                    <span className="truncate">{t(($) => $.nav[item.labelKey])}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               );
             })}
           </SidebarMenu>
-          )}
-          {/* One utility strip: the Discord link takes the leading space the
+        )}
+        {/* One utility strip: the Discord link takes the leading space the
               help trigger was leaving empty. `justify-end` keeps the trigger
               right-aligned once the Discord link is dismissed. */}
-          <div className="flex items-center justify-end gap-1">
-            <JoinDiscordCard />
-            <HelpLauncher />
-          </div>
-        </SidebarFooter>
-        <SidebarRail />
-      </Sidebar>
+        <div className="flex items-center justify-end gap-1">
+          <JoinDiscordCard />
+          <HelpLauncher />
+        </div>
+      </SidebarFooter>
+      <SidebarRail />
+    </Sidebar>
   );
 }
