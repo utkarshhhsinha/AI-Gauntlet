@@ -81,6 +81,7 @@ import type { PinnedItem } from "@ai-gauntlet/core/types";
 import { useLogout } from "../auth";
 import { ProjectIcon } from "../projects/components/project-icon";
 import { routeIconForPath } from "./route-icon-components";
+import { CurvedNav, type CurvedNavItem } from "./curved-nav";
 import { useT } from "../i18n";
 import {
   useShortcut,
@@ -107,6 +108,33 @@ const EMPTY_INVITATIONS: Awaited<ReturnType<typeof api.listMyInvitations>> = [];
 const EMPTY_INBOX: Awaited<ReturnType<typeof api.listInbox>> = [];
 const EMPTY_INBOX_SUMMARY: Awaited<ReturnType<typeof api.getInboxUnreadSummary>> = [];
 const PINNED_PREVIEW_LIMIT = 5;
+
+// Compact bubble column used by the icon-collapsed rail (the expanded sidebar
+// uses the curved wheel in curved-nav.tsx): translucent glass pills on a grid. Fill, border and the
+// inset top highlight all use theme tokens at low alpha, so the bubble reads
+// as frosted glass in both light and dark themes while staying clearly
+// visible against the sidebar background. In icon-collapsed mode the pills
+// shrink back to centred 32px circles.
+const BUBBLE_MENU =
+  "grid grid-cols-2 gap-1.5 group-data-[collapsible=icon]:grid-cols-1 group-data-[collapsible=icon]:justify-items-center";
+// An odd last bubble spans the full row so every row ends flush with the
+// sidebar's right edge (col-[1/-1] spans the explicit tracks only, so it is
+// also safe in the single-column icon-collapsed layout).
+const BUBBLE_ITEM = "min-w-0 last:odd:col-[1/-1]";
+const BUBBLE_BUTTON =
+  "h-auto min-h-8 w-full min-w-0 justify-start gap-1.5 rounded-full border border-sidebar-foreground/15 bg-sidebar-foreground/[0.07] px-2.5 py-1.5 " +
+  "text-sidebar-foreground/85 backdrop-blur-md " +
+  "shadow-[inset_0_1px_0_rgb(255_255_255/0.22),0_1px_3px_rgb(0_0_0/0.08)] " +
+  "transition-[background-color,border-color,transform,box-shadow] duration-150 " +
+  "hover:-translate-y-px hover:border-[color-mix(in_oklab,var(--bubble-purple)_60%,transparent)] hover:bg-sidebar-foreground/[0.14] hover:shadow-[inset_0_1px_0_rgb(255_255_255/0.28),0_0_14px_color-mix(in_oklab,var(--bubble-purple)_30%,transparent)] hover:text-sidebar-foreground " +
+  "active:bg-sidebar-foreground/[0.18] " +
+  "data-active:border-[color-mix(in_oklab,var(--bubble-purple)_65%,transparent)] data-active:bg-[color-mix(in_oklab,var(--bubble-purple)_24%,transparent)] data-active:font-medium data-active:text-sidebar-foreground " +
+  "data-active:shadow-[inset_0_1px_0_rgb(255_255_255/0.3),0_0_16px_color-mix(in_oklab,var(--bubble-purple)_38%,transparent)] " +
+  "data-active:hover:bg-[color-mix(in_oklab,var(--bubble-purple)_32%,transparent)] data-active:active:bg-[color-mix(in_oklab,var(--bubble-purple)_32%,transparent)] " +
+  "group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!";
+// Unread counters sit next to the label as a small solid pill.
+const BUBBLE_COUNT =
+  "ml-auto rounded-full bg-primary px-1.5 text-micro font-medium tabular-nums text-primary-foreground";
 
 // Nav items reference WorkspacePaths method names so they can be resolved
 // against the current workspace slug at render time (see AppSidebar body).
@@ -445,7 +473,7 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
   // pinned items, the workspace switcher's programmatic push, and anything
   // added later. `setOpenMobile` is a no-op on desktop, where the sheet is not
   // the sidebar's rendering at all.
-  const { setOpenMobile } = useSidebar();
+  const { setOpenMobile, state: sidebarState, isCompact } = useSidebar();
   useEffect(() => {
     setOpenMobile(false);
   }, [pathname, setOpenMobile]);
@@ -597,6 +625,35 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
   });
 
   const createIssueShortcut = useShortcut("createIssue");
+
+  // Curved wheel nav: all destinations on one arc. The icon-collapsed rail
+  // keeps the compact bubble column (a wheel needs room to breathe).
+  const showCurvedNav = !(sidebarState === "collapsed" && !isCompact);
+  const toCurvedItem = (
+    item: { key: NavKey; labelKey: NavLabelKey },
+    suppressActive = false,
+  ): CurvedNavItem => {
+    const href = p[item.key]();
+    return {
+      key: item.key,
+      href,
+      label: t(($) => $.nav[item.labelKey]),
+      Icon: routeIconForPath(href),
+      active: !suppressActive && isNavActive(pathname, href),
+      badge:
+        item.key === "inbox" && unreadCount > 0 ? (
+          <CappedNumberFlow value={unreadCount} animated={false} className={BUBBLE_COUNT} />
+        ) : item.key === "chat" && chatUnreadCount > 0 ? (
+          <CappedNumberFlow value={chatUnreadCount} animated={false} className={BUBBLE_COUNT} />
+        ) : null,
+    };
+  };
+  const curvedItems: CurvedNavItem[] = [
+    ...personalNav.map((i) => toCurvedItem(i)),
+    ...workNav.map((i) => toCurvedItem(i, isActivePinnedRoute)),
+    ...aiTeamNav.map((i) => toCurvedItem(i)),
+    ...utilityNav.map((i) => toCurvedItem(i)),
+  ];
 
   return (
       <Sidebar variant="inset">
@@ -759,19 +816,22 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
 
         {/* Navigation */}
         <SidebarContent ref={sidebarScrollRef} style={sidebarFadeStyle}>
-          <SidebarGroup>
+          {showCurvedNav ? (
+            <CurvedNav items={curvedItems} />
+          ) : (
+            <SidebarGroup>
             <SidebarGroupContent>
-              <SidebarMenu className="gap-0.5">
+              <SidebarMenu className={BUBBLE_MENU}>
                 {personalNav.map((item) => {
                   const href = p[item.key]();
                   const Icon = routeIconForPath(href);
                   const isActive = isNavActive(pathname, href);
                   return (
-                    <SidebarMenuItem key={item.key}>
+                    <SidebarMenuItem key={item.key} className={BUBBLE_ITEM}>
                       <SidebarMenuButton
                         isActive={isActive}
                         render={<AppLink href={href} />}
-                        className="text-muted-foreground hover:not-data-active:bg-sidebar-accent/70 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground"
+                        className={BUBBLE_BUTTON}
                       >
                         <Icon />
                         <span>{t(($) => $.nav[item.labelKey])}</span>
@@ -779,14 +839,14 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
                           <CappedNumberFlow
                             value={unreadCount}
                             animated={false}
-                            className="ml-auto text-caption"
+                            className={BUBBLE_COUNT}
                           />
                         )}
                         {item.key === "chat" && chatUnreadCount > 0 && (
                           <CappedNumberFlow
                             value={chatUnreadCount}
                             animated={false}
-                            className="ml-auto text-caption"
+                            className={BUBBLE_COUNT}
                           />
                         )}
                       </SidebarMenuButton>
@@ -796,6 +856,7 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
+          )}
 
           {visiblePinned.length > 0 && (
             <Collapsible defaultOpen>
@@ -846,20 +907,22 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
             </Collapsible>
           )}
 
-          <SidebarGroup>
+          {!showCurvedNav && (
+            <>
+            <SidebarGroup>
             <SidebarGroupLabel>{t(($) => $.sidebar.work_group)}</SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu className="gap-0.5">
+              <SidebarMenu className={BUBBLE_MENU}>
                 {workNav.map((item) => {
                   const href = p[item.key]();
                   const Icon = routeIconForPath(href);
                   const isActive = !isActivePinnedRoute && isNavActive(pathname, href);
                   return (
-                    <SidebarMenuItem key={item.key}>
+                    <SidebarMenuItem key={item.key} className={BUBBLE_ITEM}>
                       <SidebarMenuButton
                         isActive={isActive}
                         render={<AppLink href={href} />}
-                        className="text-muted-foreground hover:not-data-active:bg-sidebar-accent/70 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground"
+                        className={BUBBLE_BUTTON}
                       >
                         <Icon />
                         <span>{t(($) => $.nav[item.labelKey])}</span>
@@ -874,17 +937,17 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
           <SidebarGroup>
             <SidebarGroupLabel>{t(($) => $.sidebar.ai_team_group)}</SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu className="gap-0.5">
+              <SidebarMenu className={BUBBLE_MENU}>
                 {aiTeamNav.map((item) => {
                   const href = p[item.key]();
                   const Icon = routeIconForPath(href);
                   const isActive = isNavActive(pathname, href);
                   return (
-                    <SidebarMenuItem key={item.key}>
+                    <SidebarMenuItem key={item.key} className={BUBBLE_ITEM}>
                       <SidebarMenuButton
                         isActive={isActive}
                         render={<AppLink href={href} />}
-                        className="text-muted-foreground hover:not-data-active:bg-sidebar-accent/70 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground"
+                        className={BUBBLE_BUTTON}
                       >
                         <Icon />
                         <span>{t(($) => $.nav[item.labelKey])}</span>
@@ -895,19 +958,22 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
+            </>
+          )}
         </SidebarContent>
 
         <SidebarFooter className="p-2">
-          <SidebarMenu className="gap-0.5">
+          {!showCurvedNav && (
+            <SidebarMenu className={BUBBLE_MENU}>
             {utilityNav.map((item) => {
               const href = p[item.key]();
               const Icon = routeIconForPath(href);
               return (
-                <SidebarMenuItem key={item.key}>
+                <SidebarMenuItem key={item.key} className={BUBBLE_ITEM}>
                   <SidebarMenuButton
                     isActive={isNavActive(pathname, href)}
                     render={<AppLink href={href} />}
-                    className="text-caption text-muted-foreground hover:not-data-active:bg-sidebar-accent/70 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground"
+                    className={cn(BUBBLE_BUTTON, "text-caption")}
                   >
                     <Icon />
                     <span>{t(($) => $.nav[item.labelKey])}</span>
@@ -916,6 +982,7 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
               );
             })}
           </SidebarMenu>
+          )}
           {/* One utility strip: the Discord link takes the leading space the
               help trigger was leaving empty. `justify-end` keeps the trigger
               right-aligned once the Discord link is dismissed. */}

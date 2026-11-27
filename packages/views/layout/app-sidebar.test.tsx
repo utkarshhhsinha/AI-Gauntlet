@@ -70,7 +70,10 @@ vi.mock("@ai-gauntlet/ui/components/ui/sidebar", () => ({
   ),
   SidebarMenuItem: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   SidebarRail: () => null,
-  useSidebar: () => ({ setOpenMobile: sidebarState.setOpenMobile }),
+  // These tests exercise the nav rows as SidebarMenuButtons, which the sidebar
+  // renders in its icon-collapsed rail. The expanded sidebar draws the same
+  // destinations as the curved wheel (curved-nav.tsx), so report "collapsed".
+  useSidebar: () => ({ setOpenMobile: sidebarState.setOpenMobile, state: "collapsed", isCompact: false }),
 }));
 vi.mock("@ai-gauntlet/ui/components/ui/dropdown-menu", () => ({
   DropdownMenu: ({ children }: { children: React.ReactNode }) => <>{children}</>,

@@ -379,3 +379,11 @@ html[data-dnd-dragging="true"] * {
   background-color: var(--find-match-active);
   color: var(--find-match-foreground);
 }
+
+/* Sidebar curved-wheel nav accent (see views/layout/curved-nav.tsx). */
+:root {
+  --bubble-purple: oklch(0.58 0.24 295);
+}
+.dark {
+  --bubble-purple: oklch(0.68 0.21 295);
+}
