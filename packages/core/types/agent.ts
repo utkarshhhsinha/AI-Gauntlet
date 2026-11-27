@@ -428,6 +428,13 @@ export interface TaskRoutingInfo {
   tier?: string;
   chosen_model?: string;
   matched_rule?: string;
+  policy_reason?: string;
+  estimated_cost?: number;
+  quota_milestone?: string;
+  usage_percentage?: number;
+  auto_routed?: boolean;
+  routed_from?: string;
+  auto_route_reason?: string;
 }
 
 /**

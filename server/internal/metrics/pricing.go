@@ -92,6 +92,8 @@ var modelPrices = map[string]ModelPrice{
 	"alibaba:qwen3.6-flash":       {Provider: "alibaba", Model: "qwen3.6-flash", InputPerM: 0.25, CacheReadPerM: 0.025, CacheWritePerM: 0.3125, OutputPerM: 1.50},
 	"alibaba:qwen3.8-max":         {Provider: "alibaba", Model: "qwen3.8-max", InputPerM: 2.00, CacheReadPerM: 0.17, CacheWritePerM: 2.50, OutputPerM: 6.00},
 	"alibaba:qwen3.8-max-preview": {Provider: "alibaba", Model: "qwen3.8-max-preview", InputPerM: 0, CacheReadPerM: 0, CacheWritePerM: 0, OutputPerM: 0},
+	"alibaba:qwen3-coder-next":    {Provider: "alibaba", Model: "qwen3-coder-next", InputPerM: 0.40, CacheReadPerM: 0.04, CacheWritePerM: 0.50, OutputPerM: 1.60},
+	"minimax:m2.5":                {Provider: "minimax", Model: "minimax-m2.5", InputPerM: 0.20, CacheReadPerM: 0.02, CacheWritePerM: 0.25, OutputPerM: 1.10},
 	// Moonshot Kimi K3 (platform.kimi.ai/docs/pricing/chat-k3 via models.dev
 	// providers/moonshotai/models/kimi-k3.toml). Moonshot bills no separate
 	// cache write, so CacheWritePerM mirrors Input.
@@ -168,6 +170,7 @@ var modelAliasRules = []struct {
 	{regexp.MustCompile(`deepseek-v4-flash|^deepseek-chat$|^deepseek-reasoner$`), "deepseek:v4-flash"},
 	{regexp.MustCompile(`minimax-m2[.]7.*highspeed|highspeed.*minimax-m2[.]7`), "minimax:m2.7-highspeed"},
 	{regexp.MustCompile(`minimax-m2[.]7`), "minimax:m2.7"},
+	{regexp.MustCompile(`minimax-m2[.-]5`), "minimax:m2.5"},
 	{regexp.MustCompile(`gemini-3-flash`), "google:gemini-3-flash"},
 	{regexp.MustCompile(`gemini-3[.]1-pro`), "google:gemini-3.1-pro"},
 	{regexp.MustCompile(`gemini-2[.]5-pro`), "google:gemini-2.5-pro"},
@@ -195,6 +198,7 @@ var modelAliasRules = []struct {
 	{regexp.MustCompile(`(^|/|:)qwen3[.-]6-flash(\[[^\]]+\])?$`), "alibaba:qwen3.6-flash"},
 	{regexp.MustCompile(`(^|/|:)qwen3[.-]8-max(\[[^\]]+\])?$`), "alibaba:qwen3.8-max"},
 	{regexp.MustCompile(`(^|/|:)qwen3[.-]8-max-preview(\[[^\]]+\])?$`), "alibaba:qwen3.8-max-preview"},
+	{regexp.MustCompile(`(^|/|:)qwen3[.-]coder(-next)?(\[[^\]]+\])?$`), "alibaba:qwen3-coder-next"},
 	// Kimi K3. Anchored so the distinct CodeBuddy SKU `kimi-k3-1` stays
 	// unmapped; `kimi-code/k3` (Kimi Code CLI) resolves via the `/k3$` form.
 	{regexp.MustCompile(`(^|/|:)kimi-k3$`), "moonshotai:kimi-k3"},

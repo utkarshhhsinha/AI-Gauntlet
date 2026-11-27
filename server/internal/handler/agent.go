@@ -728,9 +728,16 @@ type TaskUsageData struct {
 
 // TaskRoutingData holds Cerebra intelligent routing evidence for display in task execution details.
 type TaskRoutingData struct {
-	Tier        string `json:"tier"`
-	ChosenModel string `json:"chosen_model"`
-	MatchedRule string `json:"matched_rule,omitempty"`
+	Tier            string   `json:"tier"`
+	ChosenModel     string   `json:"chosen_model"`
+	MatchedRule     string   `json:"matched_rule,omitempty"`
+	PolicyReason    string   `json:"policy_reason,omitempty"`
+	EstimatedCost   *float64 `json:"estimated_cost,omitempty"`
+	QuotaMilestone  string   `json:"quota_milestone,omitempty"`
+	UsagePercentage *float64 `json:"usage_percentage,omitempty"`
+	AutoRouted      bool     `json:"auto_routed,omitempty"`
+	RoutedFrom      string   `json:"routed_from,omitempty"`
+	AutoRouteReason string   `json:"auto_route_reason,omitempty"`
 }
 
 // TaskAgentData holds agent info included in claim responses so the daemon

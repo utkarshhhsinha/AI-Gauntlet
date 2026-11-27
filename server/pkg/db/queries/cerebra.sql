@@ -118,3 +118,11 @@ FROM   cerebra_routing_log
 WHERE  issue_id = $1
 ORDER BY created_at DESC
 LIMIT  50;
+
+-- name: UpdateRoutingLogExecutionTokens :exec
+UPDATE cerebra_routing_log
+SET    input_tokens   = $2,
+       output_tokens  = $3,
+       estimated_cost = $4,
+       policy_reason  = COALESCE(NULLIF($5, ''), policy_reason)
+WHERE  task_id = $1;

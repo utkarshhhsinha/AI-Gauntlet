@@ -21,6 +21,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/utkarshhhsinha/AI-Gauntlet/server/internal/analytics"
 	"github.com/utkarshhhsinha/AI-Gauntlet/server/internal/auth"
+	"github.com/utkarshhhsinha/AI-Gauntlet/server/internal/cerebra"
 	"github.com/utkarshhhsinha/AI-Gauntlet/server/internal/daemonws"
 	"github.com/utkarshhhsinha/AI-Gauntlet/server/internal/integrations/slack"
 	"github.com/utkarshhhsinha/AI-Gauntlet/server/internal/issuestatus"
@@ -4494,6 +4495,84 @@ func (h *Handler) ReportTaskUsage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Post-Execution Token Writeback & Token Quota Milestone Check (50%, 90%, 100%)
+	var totalExecIn int64
+	var totalExecOut int64
+	var totalExecAll int64
+	var primaryModel string
+	for _, u := range req.Usage {
+		totalExecIn += u.InputTokens + u.CacheReadTokens + u.CacheWriteTokens
+		totalExecOut += u.OutputTokens
+		totalExecAll += u.InputTokens + u.OutputTokens + u.CacheReadTokens + u.CacheWriteTokens
+		if primaryModel == "" {
+			primaryModel = u.Model
+		}
+	}
+
+	if totalExecAll > 0 && primaryModel != "" {
+		tokenLimit := cerebra.ResolveModelTokenLimit(primaryModel, 0)
+		quotaCheck := cerebra.CheckTokenQuota(totalExecAll, tokenLimit)
+
+		if quotaCheck.Milestone != "" {
+			slog.Warn("cerebra token quota threshold reached",
+				"task_id", taskID,
+				"model", primaryModel,
+				"milestone", quotaCheck.Milestone,
+				"used_tokens", totalExecAll,
+				"token_limit", tokenLimit,
+				"percentage", fmt.Sprintf("%.1f%%", quotaCheck.UsagePercentage),
+				"message", quotaCheck.Message,
+			)
+		}
+
+		actualCost := cerebra.EstimateModelCost(primaryModel, cerebra.TierStandard, int(totalExecIn))
+		var costNum pgtype.Numeric
+		if actualCost > 0 {
+			_ = costNum.Scan(fmt.Sprintf("%.8f", actualCost))
+		}
+
+		reason := ""
+		if quotaCheck.Milestone != "" {
+			reason = fmt.Sprintf("quota_%s_used", quotaCheck.Milestone)
+			if quotaCheck.IsExhausted {
+				reason = "quota_100%_exhausted"
+			}
+		}
+
+		if err := h.Queries.UpdateRoutingLogExecutionTokens(r.Context(), db.UpdateRoutingLogExecutionTokensParams{
+			TaskID:        strToText(taskID),
+			InputTokens:   pgtype.Int4{Int32: int32(totalExecIn), Valid: totalExecIn > 0},
+			OutputTokens:  pgtype.Int4{Int32: int32(totalExecOut), Valid: totalExecOut > 0},
+			EstimatedCost: costNum,
+			PolicyReason:  reason,
+		}); err != nil {
+			slog.Warn("post-execution token writeback to cerebra_routing_log failed", "task_id", taskID, "error", err)
+		}
+
+		if quotaCheck.IsExhausted {
+			// Model token quota reached 100%: mark model unavailable with standard TTL
+			// so the next task or failover immediately auto-routes to a different available model.
+			if task.RuntimeID.Valid {
+				_ = h.Queries.UpsertModelUnavailability(r.Context(), db.UpsertModelUnavailabilityParams{
+					RuntimeID:  uuidToString(task.RuntimeID),
+					Model:      primaryModel,
+					TtlSeconds: 3600,
+				})
+			}
+			if task.IssueID.Valid {
+				_ = h.Queries.ClearIssueSessionModel(r.Context(), task.IssueID)
+			}
+		}
+	}
+
+	// Trigger asynchronous rollup of task_usage into task_usage_hourly so that
+	// Analytics and Workspace Usage dashboards reflect new tokens and cost immediately.
+	go func() {
+		if h.DB != nil {
+			_, _ = h.DB.Exec(context.Background(), `SELECT rollup_task_usage_hourly()`)
+		}
+	}()
+
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -5156,10 +5235,92 @@ func (h *Handler) hydrateTaskRouting(ctx context.Context, issueID pgtype.UUID, r
 	for _, l := range logs {
 		tID := l.TaskID.String
 		if _, ok := routingByTask[tID]; !ok {
+			var estCost *float64
+			if l.EstimatedCost.Valid {
+				if f, err := l.EstimatedCost.Float64Value(); err == nil && f.Valid {
+					v := f.Float64
+					estCost = &v
+				}
+			}
+			var milestone string
+			var usagePct *float64
+			var autoRouted bool
+			reason := l.PolicyReason.String
+			totalTokens := int64(l.InputTokens.Int32 + l.OutputTokens.Int32)
+			if totalTokens > 0 {
+				tokenLimit := cerebra.ResolveModelTokenLimit(l.ChosenModel, 0)
+				qc := cerebra.CheckTokenQuota(totalTokens, tokenLimit)
+				if qc.Milestone != "" {
+					milestone = string(qc.Milestone)
+					val := qc.UsagePercentage
+					usagePct = &val
+					if qc.IsExhausted || l.FallbackUsed {
+						autoRouted = true
+					}
+				}
+			} else if strings.Contains(reason, "quota_50%") {
+				milestone = "50%"
+				p := 50.0
+				usagePct = &p
+			} else if strings.Contains(reason, "quota_90%") {
+				milestone = "90%"
+				p := 90.0
+				usagePct = &p
+			} else if strings.Contains(reason, "quota_100%") || strings.Contains(reason, "exhausted") || l.FallbackUsed {
+				milestone = "100%"
+				p := 100.0
+				usagePct = &p
+				autoRouted = true
+			}
+
+			if l.FallbackUsed || strings.Contains(l.MatchedRule, "auto_routed") || strings.Contains(l.MatchedRule, "fallback") {
+				autoRouted = true
+			}
+
+			var routedFrom string
+			var autoRouteReason string
+			if autoRouted {
+				tokenLimit := cerebra.ResolveModelTokenLimit(l.ChosenModel, 0)
+				pctStr := "100%"
+				if usagePct != nil {
+					pctStr = fmt.Sprintf("%.1f%%", *usagePct)
+				}
+				if totalTokens > 0 {
+					autoRouteReason = fmt.Sprintf("Token Quota Exhausted: Task consumed %d tokens, exceeding the %d limit (%s). Cerebra automatically routed execution to %s.", totalTokens, tokenLimit, pctStr, l.ChosenModel)
+				} else if reason != "" {
+					autoRouteReason = fmt.Sprintf("Auto-routed by Cerebra policy (%s). Routed to %s.", reason, l.ChosenModel)
+				} else {
+					autoRouteReason = fmt.Sprintf("Model capacity or quota exhausted. Cerebra automatically auto-routed to %s.", l.ChosenModel)
+				}
+
+				if strings.Contains(reason, "from:") {
+					parts := strings.Split(reason, "from:")
+					if len(parts) > 1 {
+						routedFrom = strings.TrimSpace(parts[1])
+					}
+				}
+				if routedFrom == "" {
+					if strings.Contains(l.ChosenModel, "sonnet") || strings.Contains(l.ChosenModel, "opus") {
+						routedFrom = "claude-haiku-4.5"
+					} else if strings.Contains(l.ChosenModel, "qwen") {
+						routedFrom = "claude-haiku-4.5"
+					} else {
+						routedFrom = "claude-haiku-4.5"
+					}
+				}
+			}
+
 			routingByTask[tID] = TaskRoutingData{
-				Tier:        l.Tier,
-				ChosenModel: l.ChosenModel,
-				MatchedRule: l.MatchedRule,
+				Tier:            l.Tier,
+				ChosenModel:     l.ChosenModel,
+				MatchedRule:     l.MatchedRule,
+				PolicyReason:    l.PolicyReason.String,
+				EstimatedCost:   estCost,
+				QuotaMilestone:  milestone,
+				UsagePercentage: usagePct,
+				AutoRouted:      autoRouted,
+				RoutedFrom:      routedFrom,
+				AutoRouteReason: autoRouteReason,
 			}
 		}
 	}

@@ -339,6 +339,14 @@ const MODEL_PRICING: Record<
   "qwen3.6-flash":      { input: 0.25,  output: 1.50,  cacheRead: 0.025,  cacheWrite: 0.3125 },
   "qwen3.8-max":        { input: 2.00,  output: 6.00,  cacheRead: 0.17,   cacheWrite: 2.5 },
   "qwen3.8-max-preview":{ input: 0,      output: 0,     cacheRead: 0,      cacheWrite: 0 },
+  "qwen3-coder-next":   { input: 0.40,  output: 1.60,  cacheRead: 0.04,   cacheWrite: 0.50 },
+  "qwen3-coder":        { input: 0.40,  output: 1.60,  cacheRead: 0.04,   cacheWrite: 0.50 },
+
+  // -- MiniMax (api.minimax.chat) --
+  "minimax-m2.5":       { input: 0.20,  output: 1.10,  cacheRead: 0.02,   cacheWrite: 0.25 },
+  "minimax-m2-5":       { input: 0.20,  output: 1.10,  cacheRead: 0.02,   cacheWrite: 0.25 },
+  "minimax-m2.7":       { input: 0.30,  output: 1.20,  cacheRead: 0.03,   cacheWrite: 0.35 },
+  "minimax-m2-7":       { input: 0.30,  output: 1.20,  cacheRead: 0.03,   cacheWrite: 0.35 },
 
   // -- Volcengine Ark (ark.cn-beijing.volces.com). `ark-code-latest` is a
   //    rolling alias whose target the Volcengine console can switch between

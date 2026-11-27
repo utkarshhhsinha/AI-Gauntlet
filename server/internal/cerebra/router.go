@@ -11,13 +11,17 @@ import (
 
 // RoutingResult is the output of a single Route() call.
 type RoutingResult struct {
-	RuntimeID    string
-	Model        string
-	Tier         Tier
-	MatchedRule  string
-	FallbackUsed bool
-	LatencyMs    int64
-	Status       string // "ok" | "fallback" | "error"
+	RuntimeID     string
+	Model         string
+	Tier          Tier
+	MatchedRule   string
+	FallbackUsed  bool
+	LatencyMs     int64
+	Status        string // "ok" | "fallback" | "error"
+	PolicyReason  string
+	EstimatedCost float64
+	InputTokens   int
+	OutputTokens  int
 }
 
 // TierMap maps Tier values to concrete model IDs for one runtime.
@@ -83,42 +87,51 @@ func (r *Router) Route(
 	defaultModel string,
 ) RoutingResult {
 	start := time.Now()
+	promptTokens := EstimatePromptTokens(prompt)
 
 	tier, matchedRule, err := r.classifier.Score(ctx, prompt, meta)
 	if err != nil {
 		r.logger.Warn("cerebra: classifier error; using default model", "error", err)
-		return r.fallback(ctx, defaultModel, matchedRule, start)
+		return r.fallback(ctx, defaultModel, matchedRule, promptTokens, false, start)
 	}
 
 	// Step 2–4: filter candidates.
-	candidates := r.filterCandidates(ctx, runtimes, tier)
+	candidates := r.filterCandidates(ctx, runtimes, tier, promptTokens)
 
 	// Step 5: session affinity — reuse pinned model if still valid and same tier or higher (sticky escalation).
 	if pin := r.session.Get(ctx, meta.IssueID, meta.SessionID); pin != nil {
 		if pin.Tier == tier && r.candidateExists(candidates, pin.RuntimeID, pin.Model) {
 			r.session.Refresh(ctx, meta.IssueID, meta.SessionID)
+			cost := r.policy.EstimateCost(pin.Model, tier, promptTokens)
 			result := RoutingResult{
-				RuntimeID:   pin.RuntimeID,
-				Model:       pin.Model,
-				Tier:        tier,
-				MatchedRule: matchedRule + "+session_pin",
-				LatencyMs:   time.Since(start).Milliseconds(),
-				Status:      "ok",
+				RuntimeID:     pin.RuntimeID,
+				Model:         pin.Model,
+				Tier:          tier,
+				MatchedRule:   matchedRule + "+session_pin",
+				LatencyMs:     time.Since(start).Milliseconds(),
+				Status:        "ok",
+				EstimatedCost: cost,
+				InputTokens:   promptTokens,
+				OutputTokens:  ExpectedOutputTokens(tier),
 			}
 			r.writeLog(ctx, result, meta)
 			return result
 		}
 		if tierRank(pin.Tier) > tierRank(tier) {
-			pinnedTierCandidates := r.filterCandidates(ctx, runtimes, pin.Tier)
+			pinnedTierCandidates := r.filterCandidates(ctx, runtimes, pin.Tier, promptTokens)
 			if r.candidateExists(pinnedTierCandidates, pin.RuntimeID, pin.Model) {
 				r.session.Refresh(ctx, meta.IssueID, meta.SessionID)
+				cost := r.policy.EstimateCost(pin.Model, pin.Tier, promptTokens)
 				result := RoutingResult{
-					RuntimeID:   pin.RuntimeID,
-					Model:       pin.Model,
-					Tier:        pin.Tier,
-					MatchedRule: matchedRule + "+session_pin_escalated",
-					LatencyMs:   time.Since(start).Milliseconds(),
-					Status:      "ok",
+					RuntimeID:     pin.RuntimeID,
+					Model:         pin.Model,
+					Tier:          pin.Tier,
+					MatchedRule:   matchedRule + "+session_pin_escalated",
+					LatencyMs:     time.Since(start).Milliseconds(),
+					Status:        "ok",
+					EstimatedCost: cost,
+					InputTokens:   promptTokens,
+					OutputTokens:  ExpectedOutputTokens(pin.Tier),
 				}
 				r.writeLog(ctx, result, meta)
 				return result
@@ -131,43 +144,54 @@ func (r *Router) Route(
 		chosen := candidates[0] // deterministic: first candidate (extend to round-robin)
 		r.session.Set(ctx, meta.IssueID, meta.SessionID, chosen.RuntimeID, chosen.Model, tier)
 		result := RoutingResult{
-			RuntimeID:   chosen.RuntimeID,
-			Model:       chosen.Model,
-			Tier:        tier,
-			MatchedRule: matchedRule,
-			LatencyMs:   time.Since(start).Milliseconds(),
-			Status:      "ok",
+			RuntimeID:     chosen.RuntimeID,
+			Model:         chosen.Model,
+			Tier:          tier,
+			MatchedRule:   matchedRule,
+			LatencyMs:     time.Since(start).Milliseconds(),
+			Status:        "ok",
+			EstimatedCost: chosen.EstimatedCost,
+			InputTokens:   promptTokens,
+			OutputTokens:  ExpectedOutputTokens(tier),
 		}
 		r.writeLog(ctx, result, meta)
 		return result
 	}
 
 	// Step 7: no candidates in target tier — try multi-level fallback before hard fallback.
+	wasBudgetPruned := r.wasPrunedByBudget(ctx, runtimes, tier, promptTokens)
+
 	switch tier {
 	case TierSimple:
 		// Simple -> Standard -> Heavy
-		if escalated := r.filterCandidates(ctx, runtimes, TierStandard); len(escalated) > 0 {
+		if escalated := r.filterCandidates(ctx, runtimes, TierStandard, promptTokens); len(escalated) > 0 {
 			result := RoutingResult{
-				RuntimeID:    escalated[0].RuntimeID,
-				Model:        escalated[0].Model,
-				Tier:         TierStandard,
-				MatchedRule:  matchedRule + "+escalated_to_standard",
-				FallbackUsed: true,
-				LatencyMs:    time.Since(start).Milliseconds(),
-				Status:       "fallback",
+				RuntimeID:     escalated[0].RuntimeID,
+				Model:         escalated[0].Model,
+				Tier:          TierStandard,
+				MatchedRule:   matchedRule + "+escalated_to_standard",
+				FallbackUsed:  true,
+				LatencyMs:     time.Since(start).Milliseconds(),
+				Status:        "fallback",
+				EstimatedCost: escalated[0].EstimatedCost,
+				InputTokens:   promptTokens,
+				OutputTokens:  ExpectedOutputTokens(TierStandard),
 			}
 			r.writeLog(ctx, result, meta)
 			return result
 		}
-		if escalated := r.filterCandidates(ctx, runtimes, TierHeavy); len(escalated) > 0 {
+		if escalated := r.filterCandidates(ctx, runtimes, TierHeavy, promptTokens); len(escalated) > 0 {
 			result := RoutingResult{
-				RuntimeID:    escalated[0].RuntimeID,
-				Model:        escalated[0].Model,
-				Tier:         TierHeavy,
-				MatchedRule:  matchedRule + "+escalated_to_heavy",
-				FallbackUsed: true,
-				LatencyMs:    time.Since(start).Milliseconds(),
-				Status:       "fallback",
+				RuntimeID:     escalated[0].RuntimeID,
+				Model:         escalated[0].Model,
+				Tier:          TierHeavy,
+				MatchedRule:   matchedRule + "+escalated_to_heavy",
+				FallbackUsed:  true,
+				LatencyMs:     time.Since(start).Milliseconds(),
+				Status:        "fallback",
+				EstimatedCost: escalated[0].EstimatedCost,
+				InputTokens:   promptTokens,
+				OutputTokens:  ExpectedOutputTokens(TierHeavy),
 			}
 			r.writeLog(ctx, result, meta)
 			return result
@@ -175,29 +199,42 @@ func (r *Router) Route(
 
 	case TierStandard:
 		// Standard -> Heavy -> Simple (if not MCP tool task)
-		if escalated := r.filterCandidates(ctx, runtimes, TierHeavy); len(escalated) > 0 {
+		if escalated := r.filterCandidates(ctx, runtimes, TierHeavy, promptTokens); len(escalated) > 0 {
 			result := RoutingResult{
-				RuntimeID:    escalated[0].RuntimeID,
-				Model:        escalated[0].Model,
-				Tier:         TierHeavy,
-				MatchedRule:  matchedRule + "+escalated_to_heavy",
-				FallbackUsed: true,
-				LatencyMs:    time.Since(start).Milliseconds(),
-				Status:       "fallback",
+				RuntimeID:     escalated[0].RuntimeID,
+				Model:         escalated[0].Model,
+				Tier:          TierHeavy,
+				MatchedRule:   matchedRule + "+escalated_to_heavy",
+				FallbackUsed:  true,
+				LatencyMs:     time.Since(start).Milliseconds(),
+				Status:        "fallback",
+				EstimatedCost: escalated[0].EstimatedCost,
+				InputTokens:   promptTokens,
+				OutputTokens:  ExpectedOutputTokens(TierHeavy),
 			}
 			r.writeLog(ctx, result, meta)
 			return result
 		}
 		if !meta.WillUseMCPTools {
-			if deescalated := r.filterCandidates(ctx, runtimes, TierSimple); len(deescalated) > 0 {
+			if deescalated := r.filterCandidates(ctx, runtimes, TierSimple, promptTokens); len(deescalated) > 0 {
+				rule := matchedRule + "+fallback_to_simple"
+				reason := ""
+				if wasBudgetPruned {
+					rule = matchedRule + "+budget_fallback_to_simple"
+					reason = "budget_ceiling_enforced"
+				}
 				result := RoutingResult{
-					RuntimeID:    deescalated[0].RuntimeID,
-					Model:        deescalated[0].Model,
-					Tier:         TierSimple,
-					MatchedRule:  matchedRule + "+fallback_to_simple",
-					FallbackUsed: true,
-					LatencyMs:    time.Since(start).Milliseconds(),
-					Status:       "fallback",
+					RuntimeID:     deescalated[0].RuntimeID,
+					Model:         deescalated[0].Model,
+					Tier:          TierSimple,
+					MatchedRule:   rule,
+					FallbackUsed:  true,
+					LatencyMs:     time.Since(start).Milliseconds(),
+					Status:        "fallback",
+					PolicyReason:  reason,
+					EstimatedCost: deescalated[0].EstimatedCost,
+					InputTokens:   promptTokens,
+					OutputTokens:  ExpectedOutputTokens(TierSimple),
 				}
 				r.writeLog(ctx, result, meta)
 				return result
@@ -206,29 +243,49 @@ func (r *Router) Route(
 
 	case TierHeavy:
 		// Heavy -> Standard -> Simple (if not MCP tool task)
-		if deescalated := r.filterCandidates(ctx, runtimes, TierStandard); len(deescalated) > 0 {
+		if deescalated := r.filterCandidates(ctx, runtimes, TierStandard, promptTokens); len(deescalated) > 0 {
+			rule := matchedRule + "+fallback_to_standard"
+			reason := ""
+			if wasBudgetPruned {
+				rule = matchedRule + "+budget_fallback_to_standard"
+				reason = "budget_ceiling_enforced"
+			}
 			result := RoutingResult{
-				RuntimeID:    deescalated[0].RuntimeID,
-				Model:        deescalated[0].Model,
-				Tier:         TierStandard,
-				MatchedRule:  matchedRule + "+fallback_to_standard",
-				FallbackUsed: true,
-				LatencyMs:    time.Since(start).Milliseconds(),
-				Status:       "fallback",
+				RuntimeID:     deescalated[0].RuntimeID,
+				Model:         deescalated[0].Model,
+				Tier:          TierStandard,
+				MatchedRule:   rule,
+				FallbackUsed:  true,
+				LatencyMs:     time.Since(start).Milliseconds(),
+				Status:        "fallback",
+				PolicyReason:  reason,
+				EstimatedCost: deescalated[0].EstimatedCost,
+				InputTokens:   promptTokens,
+				OutputTokens:  ExpectedOutputTokens(TierStandard),
 			}
 			r.writeLog(ctx, result, meta)
 			return result
 		}
 		if !meta.WillUseMCPTools {
-			if deescalated := r.filterCandidates(ctx, runtimes, TierSimple); len(deescalated) > 0 {
+			if deescalated := r.filterCandidates(ctx, runtimes, TierSimple, promptTokens); len(deescalated) > 0 {
+				rule := matchedRule + "+fallback_to_simple"
+				reason := ""
+				if wasBudgetPruned {
+					rule = matchedRule + "+budget_fallback_to_simple"
+					reason = "budget_ceiling_enforced"
+				}
 				result := RoutingResult{
-					RuntimeID:    deescalated[0].RuntimeID,
-					Model:        deescalated[0].Model,
-					Tier:         TierSimple,
-					MatchedRule:  matchedRule + "+fallback_to_simple",
-					FallbackUsed: true,
-					LatencyMs:    time.Since(start).Milliseconds(),
-					Status:       "fallback",
+					RuntimeID:     deescalated[0].RuntimeID,
+					Model:         deescalated[0].Model,
+					Tier:          TierSimple,
+					MatchedRule:   rule,
+					FallbackUsed:  true,
+					LatencyMs:     time.Since(start).Milliseconds(),
+					Status:        "fallback",
+					PolicyReason:  reason,
+					EstimatedCost: deescalated[0].EstimatedCost,
+					InputTokens:   promptTokens,
+					OutputTokens:  ExpectedOutputTokens(TierSimple),
 				}
 				r.writeLog(ctx, result, meta)
 				return result
@@ -239,7 +296,7 @@ func (r *Router) Route(
 	// Hard fallback: use the pre-configured default model.
 	r.logger.Warn("cerebra: no eligible candidates; using default model",
 		"tier", tier, "matched_rule", matchedRule)
-	return r.fallback(ctx, defaultModel, matchedRule, start)
+	return r.fallback(ctx, defaultModel, matchedRule, promptTokens, wasBudgetPruned, start)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -247,14 +304,38 @@ func (r *Router) Route(
 // ─────────────────────────────────────────────────────────────────────────────
 
 type candidate struct {
-	RuntimeID string
-	Model     string
+	RuntimeID     string
+	Model         string
+	EstimatedCost float64
 }
 
 // filterCandidates applies the FILTER-BEFORE-SELECT invariant:
 // unavailability → policy/budget → return clean pool.
-func (r *Router) filterCandidates(ctx context.Context, runtimes []RuntimeEntry, tier Tier) []candidate {
+func (r *Router) filterCandidates(ctx context.Context, runtimes []RuntimeEntry, tier Tier, promptTokens int) []candidate {
 	var out []candidate
+	for _, rt := range runtimes {
+		model, ok := rt.TierMap[tier]
+		if !ok || model == "" {
+			continue
+		}
+		if !r.unavail.IsAvailable(ctx, rt.RuntimeID, model) {
+			continue
+		}
+		allowed, cost := r.policy.AllowWithBudget(rt.RuntimeID, model, tier, promptTokens)
+		if !allowed {
+			continue
+		}
+		out = append(out, candidate{RuntimeID: rt.RuntimeID, Model: model, EstimatedCost: cost})
+	}
+	return out
+}
+
+// wasPrunedByBudget returns true if any candidate for this tier would have been eligible
+// (passed availability & static policy) but was rejected specifically by BudgetCeiling.
+func (r *Router) wasPrunedByBudget(ctx context.Context, runtimes []RuntimeEntry, tier Tier, promptTokens int) bool {
+	if r.policy == nil || r.policy.BudgetCeiling <= 0 {
+		return false
+	}
 	for _, rt := range runtimes {
 		model, ok := rt.TierMap[tier]
 		if !ok || model == "" {
@@ -266,9 +347,11 @@ func (r *Router) filterCandidates(ctx context.Context, runtimes []RuntimeEntry, 
 		if !r.policy.Allow(rt.RuntimeID, model) {
 			continue
 		}
-		out = append(out, candidate{RuntimeID: rt.RuntimeID, Model: model})
+		if allowed, _ := r.policy.AllowBudget(model, tier, promptTokens); !allowed {
+			return true
+		}
 	}
-	return out
+	return false
 }
 
 func (r *Router) candidateExists(candidates []candidate, runtimeID, model string) bool {
@@ -280,15 +363,32 @@ func (r *Router) candidateExists(candidates []candidate, runtimeID, model string
 	return false
 }
 
-func (r *Router) fallback(_ context.Context, defaultModel, matchedRule string, start time.Time) RoutingResult {
+func (r *Router) fallback(_ context.Context, defaultModel, matchedRule string, promptTokens int, wasBudgetPruned bool, start time.Time) RoutingResult {
+	cost := 0.0
+	if r.policy != nil && defaultModel != "" {
+		cost = r.policy.EstimateCost(defaultModel, TierSimple, promptTokens)
+	}
+	status := "fallback"
+	reason := ""
+	if wasBudgetPruned {
+		reason = "budget_ceiling_enforced"
+	}
+	if r.policy != nil && r.policy.BudgetCeiling > 0 && cost > r.policy.BudgetCeiling {
+		status = "blocked"
+		reason = "budget_ceiling_exceeded"
+	}
 	return RoutingResult{
-		RuntimeID:    "",
-		Model:        defaultModel,
-		Tier:         TierSimple,
-		MatchedRule:  matchedRule,
-		FallbackUsed: true,
-		LatencyMs:    time.Since(start).Milliseconds(),
-		Status:       "fallback",
+		RuntimeID:     "",
+		Model:         defaultModel,
+		Tier:          TierSimple,
+		MatchedRule:   matchedRule,
+		FallbackUsed:  true,
+		LatencyMs:     time.Since(start).Milliseconds(),
+		Status:        status,
+		PolicyReason:  reason,
+		EstimatedCost: cost,
+		InputTokens:   promptTokens,
+		OutputTokens:  ExpectedOutputTokens(TierSimple),
 	}
 }
 
@@ -327,6 +427,10 @@ func (r *Router) writeLog(_ context.Context, result RoutingResult, meta TaskMeta
 		FallbackUsed:      result.FallbackUsed,
 		LatencyMs:         int(result.LatencyMs),
 		Status:            result.Status,
+		PolicyReason:      result.PolicyReason,
+		EstimatedCost:     result.EstimatedCost,
+		InputTokens:       result.InputTokens,
+		OutputTokens:      result.OutputTokens,
 	}
 	// Fire-and-forget so routing evidence never adds latency to task dispatch.
 	// Use an independent timeout context so caller cancellation does not abort the write.

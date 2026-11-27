@@ -27,6 +27,7 @@ import {
 } from "../../runtimes/utils";
 import { TerminateTaskConfirmDialog } from "./terminate-task-confirm-dialog";
 import { IssueUsageDialog } from "./issue-usage-dialog";
+import { AutoRouteDialog } from "./auto-route-dialog";
 import { TaskStatusIcon } from "./task-status-icon";
 import { useStatusLabel, useTriggerText } from "./task-run-labels";
 
@@ -74,6 +75,7 @@ export function ExecutionLogSection({ issueId, identifier }: ExecutionLogSection
   const [open, setOpen] = useState(true);
   const [showPast, setShowPast] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
+  const [autoRouteTask, setAutoRouteTask] = useState<AgentTask | null>(null);
 
   // Cache key registered in `issueKeys.tasks` (packages/core/issues/queries.ts)
   // so the global useRealtimeSync `task:` prefix path invalidates it via
@@ -195,7 +197,12 @@ export function ExecutionLogSection({ issueId, identifier }: ExecutionLogSection
               {showPast && (
                 <div className="mt-0.5 space-y-0.5">
                   {pastTasks.map((task) => (
-                    <PastRow key={task.id} task={task} issueId={issueId} />
+                    <PastRow
+                      key={task.id}
+                      task={task}
+                      issueId={issueId}
+                      onShowAutoRoute={setAutoRouteTask}
+                    />
                   ))}
                 </div>
               )}
@@ -208,6 +215,11 @@ export function ExecutionLogSection({ issueId, identifier }: ExecutionLogSection
         onOpenChange={setUsageOpen}
         identifier={identifier ?? ""}
         tasks={tasks}
+      />
+      <AutoRouteDialog
+        open={!!autoRouteTask}
+        onOpenChange={(open) => !open && setAutoRouteTask(null)}
+        routing={autoRouteTask?.routing}
       />
     </div>
   );
@@ -425,7 +437,15 @@ export function ActiveTaskRow({
 
 // ─── Past row ──────────────────────────────────────────────────────────────
 
-function PastRow({ task, issueId }: { task: AgentTask; issueId: string }) {
+function PastRow({
+  task,
+  issueId,
+  onShowAutoRoute,
+}: {
+  task: AgentTask;
+  issueId: string;
+  onShowAutoRoute?: (task: AgentTask) => void;
+}) {
   const { t } = useT("issues");
   const { t: tAgents } = useT("agents");
   const timeAgo = useTimeAgo();
@@ -516,11 +536,38 @@ function PastRow({ task, issueId }: { task: AgentTask; issueId: string }) {
         {task.routing?.tier && (
           <span
             className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0 capitalize border border-amber-500/20"
-            title={`Cerebra routed to ${task.routing.chosen_model ?? ""} (Tier: ${task.routing.tier}${task.routing.matched_rule ? `, Rule: ${task.routing.matched_rule}` : ""})`}
+            title={`Cerebra routed to ${task.routing.chosen_model ?? ""} (Tier: ${task.routing.tier}${task.routing.matched_rule ? `, Rule: ${task.routing.matched_rule}` : ""}${task.routing.policy_reason ? `, Policy: ${task.routing.policy_reason}` : ""})`}
           >
             {task.routing.tier}
           </span>
         )}
+        {task.routing?.quota_milestone === "100%" || task.routing?.auto_routed ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onShowAutoRoute?.(task);
+            }}
+            className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-rose-500/10 text-rose-600 dark:text-rose-400 shrink-0 border border-rose-500/20 hover:bg-rose-500/20 cursor-pointer transition-colors"
+            title="Click to view Cerebra auto-routing details"
+          >
+            Auto-routed
+          </button>
+        ) : task.routing?.quota_milestone === "90%" ? (
+          <span
+            className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0 border border-amber-500/20"
+            title="Token Quota: 90% used · Approaching token exhaustion limit"
+          >
+            90% tokens
+          </span>
+        ) : task.routing?.quota_milestone === "50%" ? (
+          <span
+            className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 shrink-0 border border-cyan-500/20"
+            title="Token Quota: 50% used"
+          >
+            50% tokens
+          </span>
+        ) : null}
         {usage ? (
           <span className="tabular-nums">{formatTokens(usage.tokens)}</span>
         ) : (

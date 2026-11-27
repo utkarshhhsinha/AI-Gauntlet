@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { AgentTask } from "@ai-gauntlet/core/types";
 import {
   Dialog,
@@ -25,6 +25,7 @@ import {
 import { KpiCard } from "../../runtimes/components/shared";
 import { useStatusLabel, useTriggerText } from "./task-run-labels";
 import { TaskStatusIcon } from "./task-status-icon";
+import { AutoRouteDialog } from "./auto-route-dialog";
 
 // Per-run cost breakdown for one issue — the surface the execution log's
 // header total opens.
@@ -48,6 +49,7 @@ export function IssueUsageDialog({
   identifier: string;
   tasks: AgentTask[];
 }) {
+  const [autoRouteTask, setAutoRouteTask] = useState<AgentTask | null>(null);
   const { t } = useT("issues");
   // `estimateCost` reads custom rates imperatively out of the Zustand store,
   // so nothing re-renders this dialog when the user saves a new rate. Subscribe
@@ -153,7 +155,7 @@ export function IssueUsageDialog({
               <CostByAgent tasks={priced} agentIds={agentIds} total={total} />
             )}
 
-            <RunTable tasks={priced} total={total} />
+            <RunTable tasks={priced} total={total} onShowAutoRoute={setAutoRouteTask} />
 
             <div className="space-y-1 text-micro text-muted-foreground">
               {unpricedCount > 0 && (
@@ -169,6 +171,11 @@ export function IssueUsageDialog({
           </div>
         )}
       </DialogContent>
+      <AutoRouteDialog
+        open={!!autoRouteTask}
+        onOpenChange={(isOpen) => !isOpen && setAutoRouteTask(null)}
+        routing={autoRouteTask?.routing}
+      />
     </Dialog>
   );
 }
@@ -270,7 +277,15 @@ function CostByAgent({
   );
 }
 
-function RunTable({ tasks, total }: { tasks: AgentTask[]; total: TaskUsageSummary }) {
+function RunTable({
+  tasks,
+  total,
+  onShowAutoRoute,
+}: {
+  tasks: AgentTask[];
+  total: TaskUsageSummary;
+  onShowAutoRoute?: (task: AgentTask) => void;
+}) {
   const { t } = useT("issues");
   const maxTokens = tasks.reduce(
     (m, task) => Math.max(m, summarizeTaskUsage(task.usage)?.tokens ?? 0),
@@ -303,7 +318,12 @@ function RunTable({ tasks, total }: { tasks: AgentTask[]; total: TaskUsageSummar
         </thead>
         <tbody>
           {tasks.map((task) => (
-            <RunRow key={task.id} task={task} maxTokens={maxTokens} />
+            <RunRow
+              key={task.id}
+              task={task}
+              maxTokens={maxTokens}
+              onShowAutoRoute={onShowAutoRoute}
+            />
           ))}
         </tbody>
         <tfoot>
@@ -323,7 +343,15 @@ function RunTable({ tasks, total }: { tasks: AgentTask[]; total: TaskUsageSummar
   );
 }
 
-function RunRow({ task, maxTokens }: { task: AgentTask; maxTokens: number }) {
+function RunRow({
+  task,
+  maxTokens,
+  onShowAutoRoute,
+}: {
+  task: AgentTask;
+  maxTokens: number;
+  onShowAutoRoute?: (task: AgentTask) => void;
+}) {
   const { t } = useT("issues");
   const trigger = useTriggerText(task);
   const statusLabel = useStatusLabel(task.status);
@@ -373,11 +401,38 @@ function RunRow({ task, maxTokens }: { task: AgentTask; maxTokens: number }) {
           {task.routing?.tier && (
             <span
               className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0 capitalize border border-amber-500/20"
-              title={`Cerebra routed to ${task.routing.chosen_model ?? summary.models.join(", ")} (Tier: ${task.routing.tier}${task.routing.matched_rule ? `, Rule: ${task.routing.matched_rule}` : ""})`}
+              title={`Cerebra routed to ${task.routing.chosen_model ?? summary.models.join(", ")} (Tier: ${task.routing.tier}${task.routing.matched_rule ? `, Rule: ${task.routing.matched_rule}` : ""}${task.routing.policy_reason ? `, Policy: ${task.routing.policy_reason}` : ""})`}
             >
               {task.routing.tier}
             </span>
           )}
+          {task.routing?.quota_milestone === "100%" || task.routing?.auto_routed ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onShowAutoRoute?.(task);
+              }}
+              className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-rose-500/10 text-rose-600 dark:text-rose-400 shrink-0 border border-rose-500/20 hover:bg-rose-500/20 cursor-pointer transition-colors"
+              title="Click to view Cerebra auto-routing details"
+            >
+              Auto-routed
+            </button>
+          ) : task.routing?.quota_milestone === "90%" ? (
+            <span
+              className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0 border border-amber-500/20"
+              title="Token Quota: 90% used · Approaching limit"
+            >
+              90% tokens
+            </span>
+          ) : task.routing?.quota_milestone === "50%" ? (
+            <span
+              className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 shrink-0 border border-cyan-500/20"
+              title="Token Quota: 50% used"
+            >
+              50% tokens
+            </span>
+          ) : null}
         </div>
       </td>
       <td className="text-muted-foreground">{duration || "—"}</td>

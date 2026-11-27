@@ -1780,6 +1780,13 @@ export const AgentTaskSchema = z.object({
       tier: z.string().optional(),
       chosen_model: z.string().optional(),
       matched_rule: z.string().optional(),
+      policy_reason: z.string().optional(),
+      estimated_cost: z.number().optional(),
+      quota_milestone: z.string().optional(),
+      usage_percentage: z.number().optional(),
+      auto_routed: z.boolean().optional(),
+      routed_from: z.string().optional(),
+      auto_route_reason: z.string().optional(),
     })
     .optional()
     .catch(undefined),

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -118,6 +119,10 @@ func (h *Handler) ReportTaskRoutingLog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := uuid.New().String()
+	var costNum pgtype.Numeric
+	if req.EstimatedCost > 0 {
+		_ = costNum.Scan(fmt.Sprintf("%.8f", req.EstimatedCost))
+	}
 	if err := h.Queries.InsertRoutingLog(r.Context(), db.InsertRoutingLogParams{
 		ID:                id,
 		TaskID:            strToText(taskID),
@@ -134,6 +139,9 @@ func (h *Handler) ReportTaskRoutingLog(w http.ResponseWriter, r *http.Request) {
 		PolicyReason:      strToText(req.PolicyReason),
 		CandidateCount:    pgtype.Int4{Int32: int32(req.CandidateCount), Valid: req.CandidateCount > 0},
 		ClassifierVersion: strToText(req.ClassifierVersion),
+		EstimatedCost:     costNum,
+		InputTokens:       pgtype.Int4{Int32: int32(req.InputTokens), Valid: req.InputTokens > 0},
+		OutputTokens:      pgtype.Int4{Int32: int32(req.OutputTokens), Valid: req.OutputTokens > 0},
 	}); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to insert routing log")
 		return

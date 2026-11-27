@@ -411,3 +411,31 @@ func (q *Queries) UpsertModelUnavailability(ctx context.Context, arg UpsertModel
 	_, err := q.db.Exec(ctx, upsertModelUnavailability, arg.RuntimeID, arg.Model, arg.TtlSeconds)
 	return err
 }
+
+const updateRoutingLogExecutionTokens = `-- name: UpdateRoutingLogExecutionTokens :exec
+UPDATE cerebra_routing_log
+SET    input_tokens   = $2,
+       output_tokens  = $3,
+       estimated_cost = $4,
+       policy_reason  = COALESCE(NULLIF($5, ''), policy_reason)
+WHERE  task_id = $1
+`
+
+type UpdateRoutingLogExecutionTokensParams struct {
+	TaskID        pgtype.Text    `json:"task_id"`
+	InputTokens   pgtype.Int4    `json:"input_tokens"`
+	OutputTokens  pgtype.Int4    `json:"output_tokens"`
+	EstimatedCost pgtype.Numeric `json:"estimated_cost"`
+	PolicyReason  string         `json:"policy_reason"`
+}
+
+func (q *Queries) UpdateRoutingLogExecutionTokens(ctx context.Context, arg UpdateRoutingLogExecutionTokensParams) error {
+	_, err := q.db.Exec(ctx, updateRoutingLogExecutionTokens,
+		arg.TaskID,
+		arg.InputTokens,
+		arg.OutputTokens,
+		arg.EstimatedCost,
+		arg.PolicyReason,
+	)
+	return err
+}

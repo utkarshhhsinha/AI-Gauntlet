@@ -178,3 +178,115 @@ func TestRouter_SessionAffinity(t *testing.T) {
 		t.Fatalf("expected pinned sonnet, got %q", res2.Model)
 	}
 }
+
+func TestRouter_BudgetCeilingEnforcement(t *testing.T) {
+	ctx := context.Background()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	classifier := HeuristicClassifier{}
+	session := NewSessionStore(time.Hour)
+	unavail := NewUnavailabilityStore(time.Hour)
+
+	runtimes := []RuntimeEntry{
+		{
+			RuntimeID: "rt-1",
+			TierMap: TierMap{
+				TierSimple:   "claude-haiku-4.5",
+				TierStandard: "claude-sonnet-4.5",
+				TierHeavy:    "claude-opus-4.5",
+			},
+		},
+	}
+
+	// 1. Without budget ceiling: "architect" prompt routes to Heavy (Opus)
+	unconstrainedPolicy := &Policy{}
+	routerUnconstrained := NewRouter(classifier, unconstrainedPolicy, session, unavail, logger, nil)
+	res1 := routerUnconstrained.Route(ctx, "architect and design distributed cache", TaskMeta{}, runtimes, "default-model")
+	if res1.Model != "claude-opus-4.5" || res1.Tier != TierHeavy {
+		t.Fatalf("expected opus/heavy without budget constraint, got %q, tier=%q", res1.Model, res1.Tier)
+	}
+	if res1.EstimatedCost <= 0 {
+		t.Errorf("expected estimated cost > 0, got %v", res1.EstimatedCost)
+	}
+
+	// 2. With $0.02 budget ceiling:
+	// claude-opus-4.5 costs ~$0.055 -> exceeds ceiling!
+	// claude-sonnet-4.5 on Standard costs ~$0.015 -> within ceiling!
+	// Router must de-escalate to Standard (Sonnet) with budget rule annotation.
+	budgetPolicy := &Policy{
+		BudgetCeiling: 0.02,
+	}
+	var loggedEntry RoutingLogEntry
+	routerWithBudget := NewRouter(classifier, budgetPolicy, session, unavail, logger, func(_ context.Context, entry RoutingLogEntry) {
+		loggedEntry = entry
+	})
+
+	res2 := routerWithBudget.Route(ctx, "architect and design distributed cache", TaskMeta{TaskID: "task-budget-1"}, runtimes, "default-model")
+	if res2.Model != "claude-sonnet-4.5" || res2.Tier != TierStandard {
+		t.Fatalf("expected budget downgrade to sonnet/standard, got %q, tier=%q", res2.Model, res2.Tier)
+	}
+	if res2.PolicyReason != "budget_ceiling_enforced" {
+		t.Errorf("expected PolicyReason 'budget_ceiling_enforced', got %q", res2.PolicyReason)
+	}
+	if res2.MatchedRule != "keyword:architect+budget_fallback_to_standard" {
+		t.Errorf("expected matched rule to include '+budget_fallback_to_standard', got %q", res2.MatchedRule)
+	}
+	if res2.EstimatedCost > 0.02 {
+		t.Errorf("chosen model cost (%v) must be <= budget ceiling (0.02)", res2.EstimatedCost)
+	}
+
+	// Verify routing log entry was captured with cost metrics
+	time.Sleep(20 * time.Millisecond) // wait for async goroutine
+	if loggedEntry.EstimatedCost != res2.EstimatedCost {
+		t.Errorf("expected logged cost %v, got %v", res2.EstimatedCost, loggedEntry.EstimatedCost)
+	}
+	if loggedEntry.PolicyReason != "budget_ceiling_enforced" {
+		t.Errorf("expected logged policy reason 'budget_ceiling_enforced', got %q", loggedEntry.PolicyReason)
+	}
+
+	// 3. Ultra-low budget ($0.005 max):
+	// Opus (~$0.055) exceeds. Sonnet (~$0.015) exceeds.
+	// Haiku (~$0.002) is within ceiling -> must de-escalate all the way to Simple (Haiku)!
+	ultraLowBudget := &Policy{
+		BudgetCeiling: 0.005,
+	}
+	routerUltraLow := NewRouter(classifier, ultraLowBudget, session, unavail, logger, nil)
+	res3 := routerUltraLow.Route(ctx, "architect and design distributed cache", TaskMeta{}, runtimes, "default-model")
+	if res3.Model != "claude-haiku-4.5" || res3.Tier != TierSimple {
+		t.Fatalf("expected budget downgrade to haiku/simple, got %q, tier=%q", res3.Model, res3.Tier)
+	}
+	if res3.PolicyReason != "budget_ceiling_enforced" {
+		t.Errorf("expected PolicyReason 'budget_ceiling_enforced', got %q", res3.PolicyReason)
+	}
+	if res3.EstimatedCost > 0.005 {
+		t.Errorf("chosen model cost (%v) must be <= budget ceiling (0.005)", res3.EstimatedCost)
+	}
+
+	// 4. Zero allowable models (ceiling too low even for Haiku, e.g. $0.0001, and default-model also exceeds):
+	nanoBudget := &Policy{
+		BudgetCeiling: 0.0001,
+	}
+	routerNano := NewRouter(classifier, nanoBudget, session, unavail, logger, nil)
+	res4 := routerNano.Route(ctx, "architect and design distributed cache", TaskMeta{}, runtimes, "claude-opus-4.5")
+	if res4.Status != "blocked" {
+		t.Errorf("expected status 'blocked' when all models exceed budget ceiling, got %q", res4.Status)
+	}
+	if res4.PolicyReason != "budget_ceiling_exceeded" {
+		t.Errorf("expected PolicyReason 'budget_ceiling_exceeded', got %q", res4.PolicyReason)
+	}
+
+	// 5. Session Pin Bypass:
+	// If a session was pinned to Opus, but a subsequent turn runs with a tight budget ceiling,
+	// the session pin MUST be bypassed to prevent budget violations.
+	sessionStore := NewSessionStore(time.Hour)
+	sessionStore.Set(ctx, "issue-budget-pin", "sess-1", "rt-1", "claude-opus-4.5", TierHeavy)
+
+	routerPinBudget := NewRouter(classifier, budgetPolicy, sessionStore, unavail, logger, nil)
+	metaPin := TaskMeta{IssueID: "issue-budget-pin", SessionID: "sess-1"}
+	resPin := routerPinBudget.Route(ctx, "architect the system", metaPin, runtimes, "default-model")
+	if resPin.Model == "claude-opus-4.5" {
+		t.Fatalf("session pin should NOT bypass budget ceiling! got pinned opus: %q", resPin.Model)
+	}
+	if resPin.Model != "claude-sonnet-4.5" {
+		t.Fatalf("expected downgrade to sonnet under budget, got %q", resPin.Model)
+	}
+}

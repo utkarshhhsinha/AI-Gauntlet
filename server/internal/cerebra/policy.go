@@ -21,6 +21,9 @@ type Policy struct {
 	// 0 means no budget constraint.
 	BudgetCeiling float64
 
+	// CostEstimator, when provided, overrides the default token/rate cost estimation.
+	CostEstimator func(model string, tier Tier, promptTokens int) float64
+
 	// DataSensitiveProviders is the set of provider names that are NOT allowed
 	// when the task is classified as privacy-sensitive.
 	DataSensitiveProviders []string
@@ -94,4 +97,30 @@ func (p *Policy) EffectiveMCPTier() Tier {
 		return TierStandard
 	}
 	return p.MinMCPTier
+}
+
+// EstimateCost returns the estimated cost in USD for the given model, tier, and prompt tokens.
+func (p *Policy) EstimateCost(model string, tier Tier, promptTokens int) float64 {
+	if p != nil && p.CostEstimator != nil {
+		return p.CostEstimator(model, tier, promptTokens)
+	}
+	return EstimateModelCost(model, tier, promptTokens)
+}
+
+// AllowBudget reports whether a model candidate's estimated cost is within the configured BudgetCeiling.
+// When BudgetCeiling is 0 (or unconfigured), all costs pass.
+func (p *Policy) AllowBudget(model string, tier Tier, promptTokens int) (bool, float64) {
+	cost := p.EstimateCost(model, tier, promptTokens)
+	if p == nil || p.BudgetCeiling <= 0 {
+		return true, cost
+	}
+	return cost <= p.BudgetCeiling, cost
+}
+
+// AllowWithBudget checks both static policy allow/denylists and the dynamic budget ceiling constraint.
+func (p *Policy) AllowWithBudget(runtimeID, model string, tier Tier, promptTokens int) (bool, float64) {
+	if !p.Allow(runtimeID, model) {
+		return false, 0
+	}
+	return p.AllowBudget(model, tier, promptTokens)
 }

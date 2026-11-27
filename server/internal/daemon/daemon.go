@@ -8440,7 +8440,30 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 		if ctx.Err() != nil {
 			break
 		}
+
+		// Monitor token quota thresholds (50%, 90%, 100%) and trigger auto-routing on exhaustion.
+		var currentRunTokens int64
+		for _, u := range result.Usage {
+			currentRunTokens += u.InputTokens + u.OutputTokens + u.CacheReadTokens + u.CacheWriteTokens
+		}
+		modelTokenLimit := cerebra.ResolveModelTokenLimit(model, 0)
+		quotaCheck := cerebra.CheckTokenQuota(currentRunTokens, modelTokenLimit)
+		if quotaCheck.Milestone != "" {
+			taskLog.Warn(quotaCheck.Message,
+				"model", model,
+				"used_tokens", currentRunTokens,
+				"token_limit", modelTokenLimit,
+				"percentage", fmt.Sprintf("%.1f%%", quotaCheck.UsagePercentage),
+				"milestone", quotaCheck.Milestone,
+			)
+		}
+
 		isQuota, failMsg := isQuotaOrModelFailure(result, err)
+		if !isQuota && quotaCheck.IsExhausted && (result.Status != "completed" && result.Status != "ok") {
+			isQuota = true
+			failMsg = quotaCheck.Message
+		}
+
 		if !isQuota || !isCerebraActive || d.cerebraRouter == nil {
 			break
 		}
@@ -8473,7 +8496,11 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 			break
 		}
 
-		taskLog.Warn("cerebra: model quota/rate-limit reached, skipping to next best available model",
+		logMsg := "cerebra: model quota/rate-limit reached, skipping to next best available model"
+		if quotaCheck.IsExhausted {
+			logMsg = "cerebra: model token quota 100% exhausted, auto-routing to next available model"
+		}
+		taskLog.Warn(logMsg,
 			"failed_model", failedModel,
 			"next_model", nextModel,
 			"attempt", failoverAttempt+1,
