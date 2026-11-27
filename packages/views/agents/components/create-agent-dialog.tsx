@@ -9,6 +9,7 @@ import { isRuntimeUsableForUser } from "@ai-gauntlet/core/runtimes";
 import { InstructionsEditor } from "./instructions-editor";
 import { SkillMultiSelect } from "./skill-multi-select";
 import { AvatarUploadControl } from "../../common/avatar-upload-control";
+import { pickRandomAvatarPreset } from "@ai-gauntlet/ui/lib/avatar-presets";
 import { api } from "@ai-gauntlet/core/api";
 import { useWorkspaceId } from "@ai-gauntlet/core/hooks";
 import { useFeatureEnabled } from "@ai-gauntlet/core/config";
@@ -142,7 +143,7 @@ export function CreateAgentDialog({
 
   const [model, setModel] = useState(template?.model ?? "");
   const [instructions, setInstructions] = useState(template?.instructions ?? "");
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(template?.avatar_url ?? null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => template?.avatar_url ?? pickRandomAvatarPreset());
   const [selectedSkillIds, setSelectedSkillIds] = useState<Set<string>>(
     () => new Set(template?.skills.map((s) => s.id) ?? []),
   );

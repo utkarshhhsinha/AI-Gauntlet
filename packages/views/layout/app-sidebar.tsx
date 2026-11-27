@@ -168,6 +168,15 @@ const utilityNav: { key: NavKey; labelKey: NavLabelKey }[] = [
   { key: "settings", labelKey: "settings" },
 ];
 
+const navItemButtonClass = cn(
+  "group/nav-item relative flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-xs text-muted-foreground transition-all duration-150",
+  "hover:bg-sidebar-accent/60 hover:text-foreground",
+  "data-active:bg-sidebar-accent data-active:text-foreground data-active:font-medium data-active:shadow-2xs data-active:border data-active:border-sidebar-border/50",
+  "[&>svg]:size-4 [&>svg]:stroke-[1.75] [&>svg]:text-muted-foreground/80 group-hover/nav-item:[&>svg]:text-foreground [&>svg]:transition-colors",
+  "data-active:[&>svg]:text-primary",
+  "data-active:before:absolute data-active:before:left-0 data-active:before:top-1.5 data-active:before:bottom-1.5 data-active:before:w-0.5 data-active:before:rounded-r-full data-active:before:bg-primary"
+);
+
 function DraftDot() {
   const hasDraft = useIssueDraftStore((s) => s.hasDraft());
   if (!hasDraft) return null;
@@ -233,7 +242,7 @@ function SortablePinItem({
           onNavigate?.();
         }}
         className={cn(
-          "text-muted-foreground hover:not-data-active:bg-sidebar-accent/70 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground",
+          navItemButtonClass,
           isDragging && "pointer-events-none",
         )}
       >
@@ -608,9 +617,9 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
-                    <SidebarMenuButton>
+                    <SidebarMenuButton className="h-10 rounded-xl px-2.5 transition-all duration-150 hover:bg-sidebar-accent/80 border border-transparent hover:border-sidebar-border/40 group">
                       <span className="relative">
-                        <WorkspaceAvatar name={workspace?.name ?? "M"} avatarUrl={workspace?.avatar_url} size="sm" />
+                        <WorkspaceAvatar name={workspace?.name ?? "M"} avatarUrl={workspace?.avatar_url} size="sm" className="rounded-lg shadow-2xs ring-1 ring-border/40" />
                         {/* Shared brand dot: a pending invitation OR another
                             workspace with unread inbox items. The active
                             workspace's own unread stays on the Inbox nav count
@@ -619,10 +628,15 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
                           <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-brand ring-1 ring-sidebar" />
                         )}
                       </span>
-                      <span className="flex-1 truncate font-medium">
-                        {workspace?.name ?? "AI Gauntlet"}
-                      </span>
-                      <ChevronDown className="size-3 text-muted-foreground" />
+                      <div className="flex flex-1 min-w-0 flex-col text-left">
+                        <span className="truncate text-xs font-semibold text-foreground tracking-tight leading-tight">
+                          {workspace?.name ?? "AI Gauntlet"}
+                        </span>
+                        <span className="truncate text-[10px] text-muted-foreground/75 leading-tight">
+                          Workspace
+                        </span>
+                      </div>
+                      <ChevronDown className="size-3 text-muted-foreground/60 transition-transform duration-150 group-hover:text-foreground" />
                     </SidebarMenuButton>
                   }
                 />
@@ -733,7 +747,7 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
               </DropdownMenu>
             </SidebarMenuItem>
           </SidebarMenu>
-          <SidebarMenu>
+          <SidebarMenu className="gap-1.5 pt-0.5">
             {searchSlot && (
               <SidebarMenuItem>
                 {searchSlot}
@@ -741,16 +755,20 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
             )}
             <SidebarMenuItem>
               <SidebarMenuButton
-                className="text-muted-foreground"
+                className="h-8 rounded-lg bg-primary/10 hover:bg-primary/15 text-primary border border-primary/20 hover:border-primary/30 font-medium text-xs px-2.5 transition-all duration-150 active:scale-[0.99] group shadow-2xs"
                 onClick={() => openCreateIssueWithPreference()}
               >
-                <span className="relative">
-                  <SquarePen />
+                <span className="relative flex items-center justify-center">
+                  <SquarePen className="h-3.5 w-3.5 text-primary" />
                   <DraftDot />
                 </span>
-                <span>{t(($) => $.sidebar.new_issue)}</span>
+                <span className="font-medium text-primary">{t(($) => $.sidebar.new_issue)}</span>
                 {createIssueShortcut ? (
-                  <ShortcutKeycaps shortcut={createIssueShortcut} decorative className="pointer-events-none ml-auto" />
+                  <ShortcutKeycaps
+                    shortcut={createIssueShortcut}
+                    decorative
+                    className="pointer-events-none ml-auto border-primary/25 bg-primary/10 text-primary opacity-80 group-hover:opacity-100"
+                  />
                 ) : null}
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -771,23 +789,27 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
                       <SidebarMenuButton
                         isActive={isActive}
                         render={<AppLink href={href} />}
-                        className="text-muted-foreground hover:not-data-active:bg-sidebar-accent/70 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground"
+                        className={navItemButtonClass}
                       >
                         <Icon />
-                        <span>{t(($) => $.nav[item.labelKey])}</span>
+                        <span className="truncate">{t(($) => $.nav[item.labelKey])}</span>
                         {item.key === "inbox" && unreadCount > 0 && (
-                          <CappedNumberFlow
-                            value={unreadCount}
-                            animated={false}
-                            className="ml-auto text-caption"
-                          />
+                          <span className="ml-auto inline-flex items-center justify-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary border border-primary/20 shrink-0">
+                            <CappedNumberFlow
+                              value={unreadCount}
+                              animated={false}
+                              className="text-[10px] leading-none"
+                            />
+                          </span>
                         )}
                         {item.key === "chat" && chatUnreadCount > 0 && (
-                          <CappedNumberFlow
-                            value={chatUnreadCount}
-                            animated={false}
-                            className="ml-auto text-caption"
-                          />
+                          <span className="ml-auto inline-flex items-center justify-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary border border-primary/20 shrink-0">
+                            <CappedNumberFlow
+                              value={chatUnreadCount}
+                              animated={false}
+                              className="text-[10px] leading-none"
+                            />
+                          </span>
                         )}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -847,7 +869,9 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
           )}
 
           <SidebarGroup>
-            <SidebarGroupLabel>{t(($) => $.sidebar.work_group)}</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 px-2.5 pt-3.5 pb-1 select-none">
+              {t(($) => $.sidebar.work_group)}
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-0.5">
                 {workNav.map((item) => {
@@ -859,10 +883,10 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
                       <SidebarMenuButton
                         isActive={isActive}
                         render={<AppLink href={href} />}
-                        className="text-muted-foreground hover:not-data-active:bg-sidebar-accent/70 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground"
+                        className={navItemButtonClass}
                       >
                         <Icon />
-                        <span>{t(($) => $.nav[item.labelKey])}</span>
+                        <span className="truncate">{t(($) => $.nav[item.labelKey])}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
@@ -872,7 +896,9 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
           </SidebarGroup>
 
           <SidebarGroup>
-            <SidebarGroupLabel>{t(($) => $.sidebar.ai_team_group)}</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 px-2.5 pt-3.5 pb-1 select-none">
+              {t(($) => $.sidebar.ai_team_group)}
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-0.5">
                 {aiTeamNav.map((item) => {
@@ -884,10 +910,10 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
                       <SidebarMenuButton
                         isActive={isActive}
                         render={<AppLink href={href} />}
-                        className="text-muted-foreground hover:not-data-active:bg-sidebar-accent/70 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground"
+                        className={navItemButtonClass}
                       >
                         <Icon />
-                        <span>{t(($) => $.nav[item.labelKey])}</span>
+                        <span className="truncate">{t(($) => $.nav[item.labelKey])}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
@@ -897,7 +923,7 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
           </SidebarGroup>
         </SidebarContent>
 
-        <SidebarFooter className="p-2">
+        <SidebarFooter className="p-2 gap-1.5">
           <SidebarMenu className="gap-0.5">
             {utilityNav.map((item) => {
               const href = p[item.key]();
@@ -907,21 +933,34 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
                   <SidebarMenuButton
                     isActive={isNavActive(pathname, href)}
                     render={<AppLink href={href} />}
-                    className="text-caption text-muted-foreground hover:not-data-active:bg-sidebar-accent/70 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground"
+                    className={navItemButtonClass}
                   >
                     <Icon />
-                    <span>{t(($) => $.nav[item.labelKey])}</span>
+                    <span className="truncate">{t(($) => $.nav[item.labelKey])}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               );
             })}
           </SidebarMenu>
-          {/* One utility strip: the Discord link takes the leading space the
-              help trigger was leaving empty. `justify-end` keeps the trigger
-              right-aligned once the Discord link is dismissed. */}
-          <div className="flex items-center justify-end gap-1">
-            <JoinDiscordCard />
-            <HelpLauncher />
+          <div className="flex items-center justify-between gap-1 pt-2 border-t border-sidebar-border/40 mt-0.5 px-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <ActorAvatar
+                name={user?.name ?? ""}
+                initials={(user?.name ?? "U").charAt(0).toUpperCase()}
+                avatarUrl={resolvePublicFileUrl(user?.avatar_url)}
+                size="sm"
+                className="ring-1 ring-border/50 shrink-0"
+              />
+              <div className="min-w-0 truncate">
+                <p className="truncate text-xs font-medium text-foreground leading-tight">
+                  {user?.name || "User"}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <JoinDiscordCard />
+              <HelpLauncher />
+            </div>
           </div>
         </SidebarFooter>
         <SidebarRail />

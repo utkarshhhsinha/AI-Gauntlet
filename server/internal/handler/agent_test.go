@@ -858,8 +858,8 @@ func TestCreateAgent_AssignsAvatarDefault(t *testing.T) {
 				t.Fatal("CreateAgent: avatar_url is nil")
 			}
 			if tt.wantEmoji {
-				if !strings.HasPrefix(*response.AvatarURL, "emoji:") {
-					t.Fatalf("CreateAgent: avatar_url = %q, want emoji avatar", *response.AvatarURL)
+				if !strings.HasPrefix(*response.AvatarURL, presetAvatarURLPrefix) {
+					t.Fatalf("CreateAgent: avatar_url = %q, want preset avatar", *response.AvatarURL)
 				}
 				return
 			}

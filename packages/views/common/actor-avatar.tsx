@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ActorAvatar as ActorAvatarBase } from "@ai-gauntlet/ui/components/common/actor-avatar";
+import { parseAvatarEmoji } from "@ai-gauntlet/ui/lib/avatar-emoji";
+import { presetForEmojiFallback } from "@ai-gauntlet/ui/lib/avatar-presets";
 import { AVATAR_SIZE_PX, type AvatarSize } from "@ai-gauntlet/ui/lib/avatar-size";
 import {
   HoverCard,
@@ -105,12 +107,17 @@ export function ActorAvatar({
   } = useActorName();
   const paths = useWorkspacePaths();
   const resolvedName = name ?? getActorName(actorType, actorId);
-  const resolvedAvatarUrl =
+  const rawAvatarUrl =
     avatarUrl === undefined
       ? getActorAvatarUrl(actorType, actorId)
-      : avatarUrl?.startsWith("/")
-        ? resolvePublicFileUrl(avatarUrl)
-        : avatarUrl;
+      : avatarUrl;
+  const legacyEmoji = parseAvatarEmoji(rawAvatarUrl);
+  const effectiveAvatarUrl = legacyEmoji
+    ? presetForEmojiFallback(legacyEmoji)
+    : rawAvatarUrl;
+  const resolvedAvatarUrl = effectiveAvatarUrl?.startsWith("/")
+    ? resolvePublicFileUrl(effectiveAvatarUrl)
+    : effectiveAvatarUrl;
   const avatar = (
     <ActorAvatarBase
       name={resolvedName}

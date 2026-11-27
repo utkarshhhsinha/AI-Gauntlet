@@ -31,7 +31,7 @@ const (
 	// every other agent avatar uses, so ActorAvatar renders it as text and no
 	// surface needs to special-case her. The previous value was a hand-rolled
 	// data-URI SVG, which only that one constant knew how to produce.
-	mikaAgentAvatarURL = agentEmojiAvatarPrefix + "🦄"
+	mikaAgentAvatarURL = presetAvatarURLPrefix + "avatar-08.jpg"
 )
 
 // mikaAgentDescriptions is user-facing copy, so it is localized. Unlike the

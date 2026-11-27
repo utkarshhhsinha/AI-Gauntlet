@@ -1368,6 +1368,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 	// be avatar-class — see server/internal/handler/avatar.go (MUL-5393 /
 	// #6024).
 	r.Get("/api/avatars/{sig}/*", h.ServeAvatar)
+	r.Get("/api/preset-avatars/{name}", h.ServePresetAvatar)
 
 	// Hosted plugin documents are capability-authenticated and intentionally
 	// outside the session middleware: the configured content origin must stay

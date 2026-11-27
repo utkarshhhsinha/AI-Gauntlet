@@ -85,7 +85,7 @@ describe("AvatarUploadControl", () => {
     expect(screen.queryByText("Upload image")).not.toBeInTheDocument();
   });
 
-  it("offers both an image upload and emoji suggestions", async () => {
+  it("offers both an image upload and profile avatar suggestions", async () => {
     renderWithI18n(
       <AvatarUploadControl
         variant="agent"
@@ -100,12 +100,12 @@ describe("AvatarUploadControl", () => {
     expect(
       await screen.findByRole("button", { name: "Upload image" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "🦊" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Avatar 1" })).toBeInTheDocument();
   });
 
   // The caller persists whatever it gets straight into `avatar_url`, so the
-  // control has to emit the marker the renderers parse, not the bare emoji.
-  it("emits the emoji marker value the server stores", async () => {
+  // control emits the preset avatar URL.
+  it("emits the preset avatar URL value the server stores", async () => {
     const onEmojiSelected = vi.fn();
     renderWithI18n(
       <AvatarUploadControl
@@ -117,10 +117,10 @@ describe("AvatarUploadControl", () => {
     );
 
     openPicker();
-    fireEvent.click(await screen.findByRole("button", { name: "🦊" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Avatar 1" }));
 
     await waitFor(() =>
-      expect(onEmojiSelected).toHaveBeenCalledWith("emoji:🦊"),
+      expect(onEmojiSelected).toHaveBeenCalledWith("/api/preset-avatars/avatar-01.jpg"),
     );
   });
 
@@ -141,11 +141,11 @@ describe("AvatarUploadControl", () => {
     expect(openDialog).toHaveBeenCalledTimes(1);
   });
 
-  it("marks the agent's current emoji as the selected suggestion", async () => {
+  it("marks the agent's current avatar as the selected suggestion", async () => {
     renderWithI18n(
       <AvatarUploadControl
         variant="agent"
-        value="emoji:🚀"
+        value="/api/preset-avatars/avatar-02.jpg"
         onUploaded={vi.fn()}
         onEmojiSelected={vi.fn()}
       />,
@@ -153,11 +153,11 @@ describe("AvatarUploadControl", () => {
 
     openPicker();
 
-    expect(await screen.findByRole("button", { name: "🚀" })).toHaveAttribute(
+    expect(await screen.findByRole("button", { name: "Avatar 2" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    expect(screen.getByRole("button", { name: "🦊" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Avatar 1" })).toHaveAttribute(
       "aria-pressed",
       "false",
     );
@@ -185,7 +185,7 @@ describe("AvatarUploadControl", () => {
     );
 
     openPicker();
-    fireEvent.click(await screen.findByRole("button", { name: "🦊" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Avatar 1" }));
 
     const trigger = screen.getByRole("button", { name: "Change avatar" });
     await waitFor(() => expect(trigger).toBeDisabled());
@@ -212,7 +212,7 @@ describe("AvatarUploadControl", () => {
     );
 
     openPicker();
-    fireEvent.click(await screen.findByRole("button", { name: "🦊" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Avatar 1" }));
 
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Change avatar" })).not
