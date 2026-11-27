@@ -149,9 +149,9 @@ func TestSchedulePulseExampleManifestDrivesDurableRetry(t *testing.T) {
 		mu.Unlock()
 		if err := service.VerifyHookSignature(
 			secret,
-			r.Header.Get("X-AI Gauntlet-Timestamp"),
+			r.Header.Get("X-AI-Gauntlet-Timestamp"),
 			raw,
-			r.Header.Get("X-AI Gauntlet-Signature"),
+			r.Header.Get("X-AI-Gauntlet-Signature"),
 			time.Now(),
 		); err != nil {
 			http.Error(w, "signature", http.StatusUnauthorized)

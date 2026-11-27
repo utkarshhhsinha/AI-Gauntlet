@@ -652,8 +652,8 @@ design — same flag, different scope:
 
 Outside those two modes (`--thread` without `--tail`, or no `--thread`
 and no `--recent`) the cursor flags are rejected so they cannot silently
-no-op. The server emits the cursor headers (`X-AI Gauntlet-Next-Before` /
-`X-AI Gauntlet-Next-Before-Id`) only when an older page actually exists —
+no-op. The server emits the cursor headers (`X-AI-Gauntlet-Next-Before` /
+`X-AI-Gauntlet-Next-Before-Id`) only when an older page actually exists —
 exact-boundary pages (e.g. `--tail 3` on a thread with exactly 3
 replies) intentionally return no cursor so callers stop paginating.
 

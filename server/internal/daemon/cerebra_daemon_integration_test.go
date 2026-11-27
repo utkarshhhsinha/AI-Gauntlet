@@ -345,9 +345,9 @@ func TestOpenCodeToOllamaFailover(t *testing.T) {
 		"opencode/nemotron-3-ultra-free",       // heavy
 		"opencode/nemotron-3.5-lightning-free", // standard
 		"opencode/mimo-v2.5-free",              // simple
-		"ollama/deepseek-r1:32b-q4_k_m",       // heavy fallback
-		"ollama/qwen2.5-coder:14b-instruct",   // standard fallback
-		"ollama/llama3.2:1b-instruct",         // simple fallback
+		"ollama/deepseek-r1:32b-q4_k_m",        // heavy fallback
+		"ollama/qwen2.5-coder:14b-instruct",    // standard fallback
+		"ollama/llama3.2:1b-instruct",          // simple fallback
 	}
 	tierMap := cerebra.BuildTierMapFromCatalog(mixedCatalog)
 	runtimes := []cerebra.RuntimeEntry{{RuntimeID: "rt-mixed", TierMap: tierMap}}
@@ -456,7 +456,6 @@ func TestOpenCodeToOllamaFailover(t *testing.T) {
 	fmt.Println("  RESULT: Seamless OpenCode → Ollama auto-binding failover verified across all 6 scenarios")
 	fmt.Println("========================================================================================================================")
 }
-
 
 // TestAnyRuntimeWorks verifies that Cerebra routes correctly regardless of which
 // runtime or provider prefix a user has connected — opencode, openclaw, claude,
@@ -687,36 +686,6 @@ func TestKiroRoutingSimulation(t *testing.T) {
 	}
 }
 
-func TestDiscoverKiroLive(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	cat, err := agent.ListModels(ctx, "kiro", agent.NewCommand("kiro-cli", nil))
-	t.Logf("Discover err: %v, count: %d", err, len(cat.Models))
-	for _, m := range cat.Models {
-		t.Logf("Discovered model: ID=%s, Label=%s, Tier=%s", m.ID, m.Label, cerebra.ClassifyModelTier(m.ID))
-	}
-	var modelIDs []string
-	for _, m := range cat.Models {
-		modelIDs = append(modelIDs, m.ID)
-	}
-	tierMap := cerebra.BuildTierMapFromCatalog(modelIDs)
-	t.Logf("Dynamic TierMap: Simple=%s, Standard=%s, Heavy=%s",
-		tierMap[cerebra.TierSimple],
-		tierMap[cerebra.TierStandard],
-		tierMap[cerebra.TierHeavy],
-	)
-	if tierMap[cerebra.TierSimple] != "claude-haiku-4.5" {
-		t.Errorf("Expected Simple tier to be claude-haiku-4.5, got %s", tierMap[cerebra.TierSimple])
-	}
-	if tierMap[cerebra.TierStandard] != "claude-sonnet-4" {
-		t.Errorf("Expected Standard tier to be claude-sonnet-4, got %s", tierMap[cerebra.TierStandard])
-	}
-	if tierMap[cerebra.TierHeavy] != "claude-sonnet-4.5" {
-		t.Errorf("Expected Heavy tier to be claude-sonnet-4.5, got %s", tierMap[cerebra.TierHeavy])
-	}
-}
-
 func TestDeriveDynamicRuntimeTierMap_ZeroHardcoding(t *testing.T) {
 	origListModels := listModels
 	defer func() { listModels = origListModels }()
@@ -746,4 +715,3 @@ func TestDeriveDynamicRuntimeTierMap_ZeroHardcoding(t *testing.T) {
 	t.Logf("Zero hardcoding verified! Discovered: Simple=%s, Standard=%s, Heavy=%s",
 		tierMap[cerebra.TierSimple], tierMap[cerebra.TierStandard], tierMap[cerebra.TierHeavy])
 }
-

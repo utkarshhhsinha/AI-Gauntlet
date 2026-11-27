@@ -2622,8 +2622,8 @@ func TestRunIssueCommentList_ThreadTailPassesThroughAndPrintsReplyCursor(t *test
 			gotQuery = r.URL.Query()
 			// Emit a cursor so we can prove the CLI labels it "reply"
 			// when the call was a --thread + --tail combo.
-			w.Header().Set("X-AI Gauntlet-Next-Before", "2026-01-01T00:00:00.000000001Z")
-			w.Header().Set("X-AI Gauntlet-Next-Before-Id", "00000000-0000-0000-0000-000000000999")
+			w.Header().Set("X-AI-Gauntlet-Next-Before", "2026-01-01T00:00:00.000000001Z")
+			w.Header().Set("X-AI-Gauntlet-Next-Before-Id", "00000000-0000-0000-0000-000000000999")
 			w.Write([]byte("[]"))
 			return
 		}
@@ -2678,8 +2678,8 @@ func TestRunIssueCommentList_RecentStillLabelsCursorAsThread(t *testing.T) {
 			})
 			return
 		}
-		w.Header().Set("X-AI Gauntlet-Next-Before", "2026-01-01T00:00:00.000000001Z")
-		w.Header().Set("X-AI Gauntlet-Next-Before-Id", "00000000-0000-0000-0000-000000000777")
+		w.Header().Set("X-AI-Gauntlet-Next-Before", "2026-01-01T00:00:00.000000001Z")
+		w.Header().Set("X-AI-Gauntlet-Next-Before-Id", "00000000-0000-0000-0000-000000000777")
 		w.Write([]byte("[]"))
 	}))
 	defer srv.Close()

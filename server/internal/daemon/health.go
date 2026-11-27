@@ -289,7 +289,7 @@ func authorizeRepoCheckoutWorkDir(activeRoot, requested string) (string, error) 
 const (
 	repoCheckoutLockWaitTimeout = 10 * time.Second
 	repoCheckoutRetryAfter      = 2 * time.Second
-	repoCheckoutRetryHeader     = "X-AI Gauntlet-Retryable"
+	repoCheckoutRetryHeader     = "X-AI-Gauntlet-Retryable"
 	repoCheckoutRetryValueBusy  = "repo-busy"
 )
 

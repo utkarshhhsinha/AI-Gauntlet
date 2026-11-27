@@ -82,3 +82,18 @@ func (u *UnavailabilityStore) Clear() {
 	defer u.mu.Unlock()
 	u.entries = make(map[unavailKey]unavailEntry)
 }
+
+// EvictExpired sweeps all expired unavailability records and returns the number of evicted entries.
+func (u *UnavailabilityStore) EvictExpired() int {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	now := time.Now()
+	count := 0
+	for k, entry := range u.entries {
+		if now.Sub(entry.markedAt) > entry.ttl {
+			delete(u.entries, k)
+			count++
+		}
+	}
+	return count
+}

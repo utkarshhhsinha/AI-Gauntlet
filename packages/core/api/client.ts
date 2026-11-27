@@ -2807,7 +2807,7 @@ export class ApiClient {
       : "";
     return this.fetch<unknown>(`/api/plugin-bridge/v1${request.path}${query}`, {
       method: request.method,
-      headers: { "X-AI Gauntlet-Plugin-Installation": installationId },
+      headers: { "X-AI-Gauntlet-Plugin-Installation": installationId },
       body: request.body === undefined ? undefined : JSON.stringify(request.body),
     });
   }
@@ -2828,7 +2828,7 @@ export class ApiClient {
   ): Promise<PluginHookResult> {
     const raw = await this.fetch<unknown>(`/api/plugin-bridge/v1/hooks/${encodeURIComponent(hookKey)}`, {
       method: "POST",
-      headers: { "X-AI Gauntlet-Plugin-Installation": installationId },
+      headers: { "X-AI-Gauntlet-Plugin-Installation": installationId },
       body: JSON.stringify({ trigger: request.trigger, issue_id: request.issueId, input: request.input }),
     });
     return parseWithFallback(raw, PluginHookResultSchema, {

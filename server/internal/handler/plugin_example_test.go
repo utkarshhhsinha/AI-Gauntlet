@@ -329,8 +329,8 @@ func TestExamplePluginAgentHookRoundTripIsSigned(t *testing.T) {
 			Config  map[string]any `json:"config"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&payload)
-		seenSignature = r.Header.Get("X-AI Gauntlet-Signature")
-		seenTimestamp = r.Header.Get("X-AI Gauntlet-Timestamp")
+		seenSignature = r.Header.Get("X-AI-Gauntlet-Signature")
+		seenTimestamp = r.Header.Get("X-AI-Gauntlet-Timestamp")
 		seenHook, seenTrigger, seenConfig = payload.HookKey, payload.Trigger, payload.Config
 
 		w.Header().Set("Content-Type", "application/json")

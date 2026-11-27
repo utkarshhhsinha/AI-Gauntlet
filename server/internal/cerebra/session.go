@@ -183,6 +183,21 @@ func (s *SessionStore) Delete(_ context.Context, issueID, sessionID string) {
 	delete(s.pins, sessionKey(issueID, sessionID))
 }
 
+// EvictExpired sweeps all expired pins and returns the number of evicted entries.
+func (s *SessionStore) EvictExpired() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := time.Now()
+	count := 0
+	for k, p := range s.pins {
+		if now.Sub(p.UpdatedAt) > s.ttl || (s.maxPinLifetime > 0 && now.Sub(p.CreatedAt) > s.maxPinLifetime) {
+			delete(s.pins, k)
+			count++
+		}
+	}
+	return count
+}
+
 func sessionKey(issueID, sessionID string) string {
 	if sessionID != "" {
 		return "session:" + sessionID

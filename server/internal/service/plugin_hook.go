@@ -321,9 +321,9 @@ func (s *PluginService) callHookEndpoint(ctx context.Context, invocation HookInv
 		return nil, err
 	}
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("X-AI Gauntlet-Timestamp", timestamp)
-	request.Header.Set("X-AI Gauntlet-Signature", hookSignatureVersion+"="+signature)
-	request.Header.Set("X-AI Gauntlet-Plugin-Installation", uuidString(installation.ID))
+	request.Header.Set("X-AI-Gauntlet-Timestamp", timestamp)
+	request.Header.Set("X-AI-Gauntlet-Signature", hookSignatureVersion+"="+signature)
+	request.Header.Set("X-AI-Gauntlet-Plugin-Installation", uuidString(installation.ID))
 	request.Header.Set("User-Agent", "AI Gauntlet-Hooks/1")
 
 	response, err := client.Do(request)

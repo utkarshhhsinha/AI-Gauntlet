@@ -130,7 +130,7 @@ func TestParseBundleRejections(t *testing.T) {
 			name: "surface entry has a top-level import",
 			files: map[string]string{
 				plugincontract.ManifestFilename: bundleManifest,
-				"ui/main.js":                    "import { ai-gauntlet } from \"https://esm.sh/@ai-gauntlet/plugin-sdk@1\";\n",
+				"ui/main.js":                    "import { sdk } from \"https://esm.sh/@ai-gauntlet/plugin-sdk@1\";\n",
 				"skills/pr-review/SKILL.md":     "Read the diff.\n",
 			},
 			want: "top-level import",
@@ -235,10 +235,10 @@ func TestParseBundleFromDirMatchesTheUploadPath(t *testing.T) {
 // blocks a legitimate publish outright. This pins both directions.
 func TestSurfaceEntryModuleDetection(t *testing.T) {
 	refused := map[string]string{
-		"bare import":                    "import { ai-gauntlet } from \"./sdk.js\";\n",
-		"indented import":                "  import { ai-gauntlet } from \"./sdk.js\";\n",
-		"import after a line comment":    "// set up\nimport { ai-gauntlet } from \"./sdk.js\";\n",
-		"import after a block comment":   "/* set up */ import { ai-gauntlet } from \"./sdk.js\";\n",
+		"bare import":                    "import { sdk } from \"./sdk.js\";\n",
+		"indented import":                "  import { sdk } from \"./sdk.js\";\n",
+		"import after a line comment":    "// set up\nimport { sdk } from \"./sdk.js\";\n",
+		"import after a block comment":   "/* set up */ import { sdk } from \"./sdk.js\";\n",
 		"namespace import":               "import * as sdk from \"./sdk.js\";\n",
 		"named export":                   "export { render };\n",
 		"import after another statement": "const x = 1; import y from \"./y.js\";\n",
@@ -258,7 +258,7 @@ func TestSurfaceEntryModuleDetection(t *testing.T) {
 	accepted := map[string]string{
 		// The case the line-prefix version got wrong: a surface that renders a
 		// code sample is ordinary, and refusing it leaves the author stuck.
-		"import inside a template literal": "const help = `\nimport { ai-gauntlet } from \"@ai-gauntlet/plugin-sdk\";\n`;\nconsole.log(help);\n",
+		"import inside a template literal": "const help = `\nimport { sdk } from \"@ai-gauntlet/plugin-sdk\";\n`;\nconsole.log(help);\n",
 		"import inside a string":           "const help = \"import x from 'y'\";\nconsole.log(help);\n",
 		"import inside a comment":          "// import { x } from \"./x.js\";\nconsole.log(1);\n",
 		// Dynamic import is legal in a classic script.

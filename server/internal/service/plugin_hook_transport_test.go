@@ -42,8 +42,8 @@ func newHookTestServer(t *testing.T) *hookTestServer {
 		body, _ := io.ReadAll(r.Body)
 		harness.received <- hookReceivedRequest{
 			Body:      body,
-			Signature: r.Header.Get("X-AI Gauntlet-Signature"),
-			Timestamp: r.Header.Get("X-AI Gauntlet-Timestamp"),
+			Signature: r.Header.Get("X-AI-Gauntlet-Signature"),
+			Timestamp: r.Header.Get("X-AI-Gauntlet-Timestamp"),
 			Header:    r.Header.Clone(),
 		}
 		if harness.respond != nil {

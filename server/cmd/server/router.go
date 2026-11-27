@@ -80,7 +80,7 @@ var corsAllowedHeaders = []string{
 	"X-Client-OS",
 	"X-Client-Capabilities",
 	// Sent by the host page when it relays a plugin surface's Action API call.
-	"X-AI Gauntlet-Plugin-Installation",
+	"X-AI-Gauntlet-Plugin-Installation",
 }
 
 // corsExposedHeaders lists response headers browser clients are allowed to read.
